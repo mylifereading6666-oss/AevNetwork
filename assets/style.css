@@ -76,3 +76,12 @@ table{display:block;max-width:100%;overflow-x:auto}
  .sidebar{width:220px}
  .wrap{width:calc(100% - 36px)}
 }
+
+/* Community board */
+.community-post{margin:12px 0}
+.community-post>p{white-space:pre-wrap}
+.community-comments{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.community-comments h4{margin:0 0 10px}
+.community-comment{padding:12px;margin:9px 0;background:#0b1223;border:1px solid #293653;border-radius:12px}
+.community-comment>p{white-space:pre-wrap;margin:0 0 8px}
+.community-comment-form{margin-top:14px}
