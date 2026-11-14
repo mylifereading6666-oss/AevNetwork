@@ -158,7 +158,13 @@ function startSharedRealtime(){
     if(document.documentElement.dataset.page==='index')loadPublicFeed('announcements','publicAnnouncements');
     if(document.documentElement.dataset.page==='admin'&&$('adminKind')?.value==='announcements')loadContent();
    }).subscribe();
- }catch(e){console.warn('共有お知らせのリアルタイム接続に失敗しました',e);}
+  if(document.documentElement.dataset.page==='community'){
+   sharedRealtimeClient.channel('aev-shared-board')
+    .on('postgres_changes',{event:'*',schema:'public',table:'aevnetwork_community_posts'},()=>loadCommunity())
+    .on('postgres_changes',{event:'*',schema:'public',table:'aevnetwork_community_comments'},()=>loadCommunity())
+    .subscribe();
+  }
+ }catch(e){console.warn('共有データのリアルタイム接続に失敗しました',e);}
 }
 (async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(document.documentElement.dataset.page==='index')await loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='community')await loadCommunity();startSharedRealtime();}catch(e){localStorage.removeItem(KEY);session=null;showAccount();}})();
 })();
