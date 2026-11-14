@@ -320,7 +320,7 @@ async function loadPublicProfilePage(){
   status.textContent='';
  }catch(e){status.textContent='プロフィールを読み込めませんでした：'+(e.message==='profile_not_found'?'ユーザーが見つかりません。':e.message);card.innerHTML='';actions.innerHTML='';}
 }
-if(document.documentElement.dataset.page==='profile'){profileBadgeRefreshTimer=setInterval(()=>{if(!document.hidden&&session)loadPublicProfilePage().catch(()=>{});},10000);}
+if(document.documentElement.dataset.page==='profile'){profileBadgeRefreshTimer=setInterval(()=>{if(!document.hidden&&session)loadPublicProfilePage().catch(()=>{});},5000);}
 
 let sharedRealtimeClient=null;
 function startSharedRealtime(){
