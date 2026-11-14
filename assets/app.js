@@ -53,6 +53,7 @@ async function loadSharedProfile(){
   $('profileFont').value=d.font_style||'default';
  }catch(e){panel.hidden=false;$('profileStatus').textContent='プロフィールを読み込めませんでした：'+e.message;}
 }
+$('saveNetworkNickname')?.addEventListener('click',async()=>{const b=$('saveNetworkNickname'),status=$('profileStatus');b.disabled=true;status.textContent='ニックネームを保存しています…';try{await call('profile_save',{nickname:$('profileNickname').value.trim(),profile:{bio:$('profileBio').value,favorite_game:$('profileGame').value,play_style:$('profileStyle').value,avatar_url:$('profileAvatar').value.trim(),banner_url:$('profileBanner').value.trim(),accent_color:$('profileAccent').value,theme:$('profileTheme').value,name_color:$('profileNameColor').value,name_effect:$('profileNameEffect').value,font_style:$('profileFont').value}});await loadSharedProfile();status.textContent='ニックネームを保存しました。AevToolsにも反映されます。';}catch(e){const map={nickname_taken:'このネームは既に使用されています。',nickname_reserved:'このネームは使用できません。',nickname_cooldown:'ネーム変更は14日ごとです。',nickname_length_invalid:'ネームは1〜20文字で入力してください。'};status.textContent=map[e.message]||'保存できませんでした：'+e.message;}finally{b.disabled=false;}});
 $('editNetworkProfile')?.addEventListener('click',()=>{const box=$('networkProfileEditor'),save=$('saveSharedProfile'),b=$('editNetworkProfile');const open=box.hidden;box.hidden=!open;save.hidden=!open;b.textContent=open?'プロフィール設定を閉じる':'プロフィール設定を編集';b.setAttribute('aria-expanded',String(open));});
 $('saveSharedProfile')?.addEventListener('click',async()=>{
  const b=$('saveSharedProfile'),status=$('profileStatus');
