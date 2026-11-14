@@ -14,6 +14,29 @@ document.querySelectorAll('.navbtn').forEach(a=>{if(a.dataset.page===document.do
 document.getElementById('headerAccountLink')?.addEventListener('click',()=>setTimeout(refreshServiceMaintenance,0));
 if($('year'))$('year').textContent=new Date().getFullYear();
 async function call(action,extra={}){const headers={'Content-Type':'application/json'};if(session?.access_token)headers.Authorization='Bearer '+session.access_token;const res=await fetch(API,{method:'POST',headers,body:JSON.stringify({action,...extra})});const data=await res.json().catch(()=>({}));if(!res.ok)throw Error([data.error||'API通信エラー',data.detail||'',data.code||'',data.hint||''].filter(Boolean).join(' / '));return data;}
+const PROFILE_STORAGE_URL='https://vuqbbwdojwmtehgsyfaq.supabase.co';
+const PROFILE_STORAGE_KEY='sb_publishable_BnrPnMn5fCDrXuloVe7XYw_W5R7JH4E';
+async function uploadNetworkProfileImage(kind){
+ const input=$(kind==='avatar'?'profileAvatarFile':'profileBannerFile'),file=input?.files?.[0],status=$('profileStatus');
+ if(!file){status.textContent='アップロードする画像を選択してください。';return;}
+ const allowed={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'};
+ if(!allowed[file.type]||file.size>5*1024*1024){status.textContent='JPEG・PNG・WebP・GIF形式、5MB以下の画像を選択してください。';return;}
+ if(!session?.access_token||!session?.user?.id){status.textContent='ログインセッションを確認できません。再ログインしてください。';return;}
+ const button=$(kind==='avatar'?'uploadProfileAvatar':'uploadProfileBanner');if(button)button.disabled=true;
+ status.textContent='画像をアップロードしています…';
+ try{
+  const path=session.user.id+'/'+kind+'.'+allowed[file.type];
+  const response=await fetch(PROFILE_STORAGE_URL+'/storage/v1/object/aev-profile-images/'+path,{method:'POST',headers:{apikey:PROFILE_STORAGE_KEY,Authorization:'Bearer '+session.access_token,'Content-Type':file.type,'x-upsert':'true'},body:file});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.message||result.error||'storage_upload_failed');
+  $(kind==='avatar'?'profileAvatar':'profileBanner').value=PROFILE_STORAGE_URL+'/storage/v1/object/public/aev-profile-images/'+path;
+  input.value='';
+  status.textContent='アップロードしました。プロフィール設定を保存すると両サイトに反映されます。';
+ }catch(e){status.textContent='画像をアップロードできませんでした：'+e.message;}
+ finally{if(button)button.disabled=false;}
+}
+$('uploadProfileAvatar')?.addEventListener('click',()=>uploadNetworkProfileImage('avatar'));
+$('uploadProfileBanner')?.addEventListener('click',()=>uploadNetworkProfileImage('banner'));
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function date(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?'—':d.toLocaleString('ja-JP');}
 let serviceMaintenanceEnabled=false;
