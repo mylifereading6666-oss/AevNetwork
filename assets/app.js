@@ -72,7 +72,27 @@ function showAccount(){const out=$('accountLoggedOut'),inside=$('accountLoggedIn
 const status=$('accountStatus');
 $('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
 $('accountLogout')?.addEventListener('click',()=>{localStorage.removeItem(KEY);session=null;showAccount();const pp=$('networkProfilePanel');if(pp)pp.hidden=true;refreshAdmin();if(status)status.textContent='ログアウトしました。';});
-async function loadPublicFeed(kind,target){const el=$(target);if(!el)return;try{const r=await call('public_list_content',{kind}),items=r.items||[];el.innerHTML=items.length?items.map(x=>'<article class="feed-item"><h3>'+esc(x.title)+'</h3>'+(kind==='news'&&x.category?'<p class="feed-meta">'+esc(x.category)+'</p>':'')+'<p>'+esc(x.body)+'</p>'+((x.link_url||x.video_url)?'<p>'+(x.link_url?'<a class="primary" href="'+esc(x.link_url)+'" target="_blank" rel="noopener noreferrer">関連ページ ↗</a> ':'')+(x.video_url?'<a class="primary" href="'+esc(x.video_url)+'" target="_blank" rel="noopener noreferrer">動画を見る ↗</a>':'')+'</p>':'')+'<div class="feed-meta">'+(kind==='announcements'?'Aev0rnJP（管理者） · ':'')+esc(date(x.created_at))+'</div></article>').join(''):'<p class="muted">現在、掲載されている情報はありません。</p>';}catch(e){console.error('お知らせ読み込みエラー:',e);el.textContent='情報を読み込めませんでした：'+(e?.message||String(e));}}
+function safeFeedUrl(value){try{const u=new URL(value,location.href);return u.protocol==='https:'?u.href:'';}catch(e){return '';}}
+function safeFeedEmbed(value){try{const u=new URL(value);return u.protocol==='https:'&&['www.youtube-nocookie.com','youtube-nocookie.com','platform.twitter.com'].includes(u.hostname)?u.href:'';}catch(e){return '';}}
+async function loadPublicFeed(kind,target){
+ const el=$(target);if(!el)return;
+ try{
+  const r=await call('public_list_content',{kind}),items=r.items||[];
+  el.innerHTML=items.length?items.map(x=>{
+   const image=safeFeedUrl(x.image_url||'');
+   const embed=safeFeedEmbed(x.video_embed_url||'');
+   const video=safeFeedUrl(x.video_url||'');
+   const isDirectVideo=/\\.(mp4|webm|ogg)(?:[?#]|$)/i.test(video);
+   const media=(image?'<img class="feed-image" src="'+esc(image)+'" alt="" loading="lazy">':'')+
+    (isDirectVideo?'<video class="feed-video" controls preload="none" playsinline src="'+esc(video)+'"></video>':
+     (embed?'<div class="feed-video-frame"><iframe src="'+esc(embed)+'" title="動画プレーヤー" loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>':''));
+   const source=x.source_url?'<p class="feed-source">情報元：'+esc(x.source_name||'公式情報')+' · <a href="'+esc(safeFeedUrl(x.source_url))+'" target="_blank" rel="noopener noreferrer">元の情報を開く ↗</a></p>':'';
+   const link=x.link_url||x.source_url||'';
+   const related=link?'<p><a class="primary" href="'+esc(safeFeedUrl(link))+'" target="_blank" rel="noopener noreferrer">公式情報を開く ↗</a></p>':'';
+   return '<article class="feed-item"><h3>'+esc(x.title)+'</h3>'+(kind==='news'&&x.category?'<p class="feed-meta">'+esc(x.category)+'</p>':'')+media+'<p>'+esc(x.body)+'</p>'+related+source+'<div class="feed-meta">'+(kind==='announcements'?'Aev0rnJP（管理者） · ':'')+esc(date(x.created_at))+'</div></article>';
+  }).join(''):'<p class="muted">現在、掲載されている情報はありません。</p>';
+ }catch(e){console.error('お知らせ読み込みエラー:',e);el.textContent='情報を読み込めませんでした：'+(e?.message||String(e));}
+}
 $('announcementsRefresh')?.addEventListener('click',()=>loadPublicFeed('announcements','publicAnnouncements'));
 async function loadMetrics(){const r=await call('admin_dashboard');const m=r.metrics||{};$('adminMetrics').innerHTML=[['登録ユーザー',m.users],['お知らせ',m.announcements],['AevNews',m.news],['アップデート',m.updates],['制限中ユーザー',m.blacklist]].map(([k,v])=>'<div class="card"><p>'+esc(k)+'</p><h2>'+esc(v??'—')+'</h2></div>').join('');}
 async function loadContent(){
