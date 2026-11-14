@@ -19,6 +19,7 @@ function date(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.ge
 let serviceMaintenanceEnabled=false;
 function maintenanceOverlay(active){
  let el=$('serviceMaintenanceOverlay');
+ document.body.classList.toggle('maintenance-lock',active);
  if(!active){el?.remove();return;}
  if(document.documentElement.dataset.page==='account')return;
  if(!el){el=document.createElement('div');el.id='serviceMaintenanceOverlay';el.className='service-maintenance-overlay';el.innerHTML='<div class="service-maintenance-card"><div style="font-size:2rem">🛠️</div><h2>ただいまメンテナンス中です</h2><p>現在、AevTools・AevNetworkの機能を一時停止しています。作業完了までしばらくお待ちください。</p><p class="muted">管理者はテストのため通常どおり利用できます。</p></div>';document.body.append(el);}
