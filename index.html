@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b18">
+  <meta name="description" content="AevNetwork - ゲーマーのためのコミュニティ＆ゲームニュースプラットフォーム">
+  <title>AevNetwork | Gaming Community</title>
+  <style>
+    :root{color-scheme:dark;--bg:#080b18;--panel:#11182b;--panel2:#151e35;--line:#263452;--text:#f4f6ff;--muted:#9ca9c7;--blue:#60a5fa;--purple:#a78bfa;--cyan:#67e8f9}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#18234a 0,transparent 42%),radial-gradient(ellipse at 90% 15%,#241744 0,transparent 35%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Noto Sans JP",sans-serif;min-height:100vh}
+    a{color:inherit;text-decoration:none}button{font:inherit}.wrap{width:min(1160px,calc(100% - 36px));margin:auto}
+    header{position:sticky;top:0;z-index:20;background:#080b18df;backdrop-filter:blur(16px);border-bottom:1px solid #263452}
+    .top{height:72px;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{display:flex;align-items:center;gap:11px;font-weight:850;letter-spacing:.02em}.brand-mark{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#9333ea);box-shadow:0 8px 28px #6d28d955;font-weight:900}.brand span:last-child{font-size:1.12rem}.brand small{display:block;color:var(--muted);font-size:.62rem;letter-spacing:.18em;font-weight:650}
+    nav{display:flex;align-items:center;gap:6px}nav a{padding:10px 13px;color:var(--muted);border-radius:10px;font-size:.9rem}nav a:hover,nav a.active{background:#1b2743;color:white}.tool-link,.primary{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:11px 16px;border-radius:12px;background:linear-gradient(120deg,#2563eb,#7c3aed);font-weight:750;box-shadow:0 8px 24px #4f46e544;transition:transform .2s,filter .2s}.tool-link:hover,.primary:hover{transform:translateY(-2px);filter:brightness(1.12)}.menu{display:none;background:#17213a;border:1px solid var(--line);color:white;border-radius:10px;padding:9px 12px}
+    .hero{padding:68px 0 46px;display:grid;grid-template-columns:1.15fr .85fr;gap:36px;align-items:center}.eyebrow{color:#a5b4fc;font-size:.78rem;font-weight:800;letter-spacing:.2em;text-transform:uppercase}.hero h1{font-size:clamp(2.7rem,6vw,5.3rem);line-height:.98;letter-spacing:-.055em;margin:16px 0}.gradient{background:linear-gradient(90deg,#93c5fd,#c4b5fd,#67e8f9);background-clip:text;color:transparent}.hero p{max-width:610px;color:var(--muted);font-size:1.05rem;line-height:1.85}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}.secondary{display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border:1px solid #425174;border-radius:12px;color:#dbe5ff;font-weight:700}.hero-art{min-height:280px;border:1px solid #34446b;border-radius:26px;background:linear-gradient(145deg,#172b55aa,#29174799),radial-gradient(circle at 50% 35%,#6d5df455,transparent 60%);display:grid;place-items:center;position:relative;overflow:hidden;box-shadow:0 24px 80px #0007}.orb{width:190px;height:190px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#dbeafe,#818cf8 25%,#6d28d9 58%,#111827 75%);box-shadow:0 0 65px #8b5cf688,0 0 130px #2563eb44;position:relative}.orb:after{content:"A";position:absolute;inset:0;display:grid;place-items:center;font-size:6rem;font-weight:950;color:#fff;text-shadow:0 5px 30px #111}.float{position:absolute;padding:10px 13px;border:1px solid #6475a077;background:#101a32dd;border-radius:12px;color:#dbeafe;font-size:.78rem;font-weight:750}.f1{top:18%;left:8%}.f2{right:7%;top:25%}.f3{bottom:15%;left:24%}
+    section{padding:28px 0 52px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:20px}.section-head h2{margin:0;font-size:1.65rem}.section-head p{margin:7px 0 0;color:var(--muted);font-size:.9rem}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:linear-gradient(145deg,#151f37,#0e1527);border:1px solid var(--line);border-radius:18px;padding:21px;min-height:190px;transition:transform .2s,border-color .2s}.card:hover{transform:translateY(-3px);border-color:#6475a0}.icon{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:#263b67;color:#bfdbfe;font-size:1.35rem;margin-bottom:15px}.card:nth-child(2) .icon{background:#39265e;color:#ddd6fe}.card:nth-child(3) .icon{background:#17444d;color:#a5f3fc}.card h3{margin:0 0 8px;font-size:1.12rem}.card p{color:var(--muted);line-height:1.7;font-size:.9rem;margin:0}.card .tag{display:inline-block;margin-top:15px;font-size:.72rem;color:#c4b5fd;border:1px solid #6d4ba0;border-radius:99px;padding:4px 9px}
+    .service-card{display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(110deg,#12264b,#20183f);border:1px solid #3b4c78;border-radius:20px;padding:24px}.service-card h3{margin:0 0 6px;font-size:1.25rem}.service-card p{margin:0;color:var(--muted);font-size:.9rem;line-height:1.6}.service-card .tool-link{white-space:nowrap}
+    .news-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.news{border:1px solid var(--line);background:#10182a;border-radius:16px;padding:18px}.news small{color:#93c5fd;font-weight:750}.news h3{font-size:1rem;margin:10px 0}.news p{font-size:.85rem;color:var(--muted);line-height:1.7;margin:0}.notice{border:1px dashed #465779;background:#111a2d99;border-radius:14px;padding:16px;color:var(--muted);font-size:.88rem;line-height:1.7}
+    footer{border-top:1px solid var(--line);padding:28px 0 36px;color:var(--muted);font-size:.82rem}.foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.mobile-nav{display:none}
+    @media(max-width:800px){.hero{grid-template-columns:1fr;padding-top:48px}.hero-art{min-height:230px}.grid,.news-grid{grid-template-columns:1fr 1fr}.top nav{display:none}.menu{display:block}.tool-link.desktop{display:none}.mobile-nav.open{display:flex;flex-direction:column;padding:8px 0 14px}.mobile-nav a{padding:12px;color:var(--muted);border-radius:9px}.mobile-nav a:hover{background:#1b2743;color:white}}
+    @media(max-width:540px){.wrap{width:min(100% - 26px,1160px)}.grid,.news-grid{grid-template-columns:1fr}.hero h1{font-size:3.15rem}.hero-art{min-height:205px}.orb{width:145px;height:145px}.orb:after{font-size:4.8rem}.service-card{align-items:flex-start;flex-direction:column}.service-card .tool-link{width:100%}.section-head{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <a class="brand" href="#home" aria-label="AevNetwork ホーム"><span class="brand-mark">A</span><span>AevNetwork<small>GAMING COMMUNITY</small></span></a>
+      <nav aria-label="メインナビゲーション">
+        <a class="active" href="#home">ホーム</a><a href="#community">Community</a><a href="#news">News</a>
+      </nav>
+      <a class="tool-link desktop" href="https://mylifereading6666-oss.github.io/AevTools/">AevToolsへ移動 <span aria-hidden="true">↗</span></a>
+      <button class="menu" id="menuBtn" aria-expanded="false" aria-controls="mobileNav">☰ メニュー</button>
+    </div>
+    <nav class="mobile-nav" id="mobileNav" aria-label="モバイルナビゲーション">
+      <a href="#home">ホーム</a><a href="#community">Community</a><a href="#news">News</a><a href="https://mylifereading6666-oss.github.io/AevTools/">AevToolsへ移動 ↗</a>
+    </nav>
+  </div>
+</header>
+<main id="home">
+  <div class="wrap">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Connect · Compete · Create</div>
+        <h1>YOUR GAME.<br><span class="gradient">YOUR COMMUNITY.</span></h1>
+        <p>AevNetworkは、ゲーマーがつながり、情報を共有し、チームや大会を通じて交流できる総合プラットフォームです。</p>
+        <div class="actions"><a class="primary" href="#community">コミュニティを見る <span>→</span></a><a class="secondary" href="#news">最新情報を見る</a></div>
+      </div>
+      <div class="hero-art" aria-label="AevNetworkのイメージ">
+        <span class="float f1">✦ COMMUNITY</span><span class="float f2">◈ NEWS &amp; UPDATES</span><span class="float f3">♛ PLAY TOGETHER</span><div class="orb"></div>
+      </div>
+    </section>
+
+    <section id="community">
+      <div class="section-head"><div><div class="eyebrow">Explore AevNetwork</div><h2>コミュニティ機能</h2><p>ゲーム仲間との交流に必要な機能を、ひとつの場所に。</p></div></div>
+      <div class="grid">
+        <article class="card"><div class="icon">▤</div><h3>掲示板・チャット</h3><p>話題を投稿して、コメントやチャットでユーザー同士が交流できる場所。</p><span class="tag">COMMUNITY</span></article>
+        <article class="card"><div class="icon">♧</div><h3>フレンド・プロフィール</h3><p>自分らしいアイコン、バナー、カラフルなネーム装飾でプロフィールをカスタマイズ。</p><span class="tag">SOCIAL</span></article>
+        <article class="card"><div class="icon">♜</div><h3>チーム・大会</h3><p>チームやグループを作成し、イベントや大会への参加を目指せる機能。</p><span class="tag">ARENA</span></article>
+      </div>
+    </section>
+
+    <section id="news">
+      <div class="section-head"><div><div class="eyebrow">Latest information</div><h2>AevNews</h2><p>Fortniteをはじめ、ゲーム・ITの情報をまとめるニュースエリア。</p></div></div>
+      <div class="news-grid">
+        <article class="news"><small>FORTNITE</small><h3>Fortniteニュース</h3><p>ゲーム内の話題や公式発表を確認できるニュースカテゴリー。</p></article>
+        <article class="news"><small>GAME UPDATE</small><h3>アップデート情報</h3><p>アップデートやパッチ情報を整理して掲載するカテゴリー。</p></article>
+        <article class="news"><small>COMMUNITY</small><h3>ユーザー投稿</h3><p>ユーザーがゲーム情報や記事を投稿できる仕組みを予定。</p></article>
+      </div>
+    </section>
+
+    <section aria-labelledby="services-title">
+      <div class="section-head"><div><div class="eyebrow">Aev Services</div><h2 id="services-title">他のAevサービスへ移動</h2><p>AevNetworkとAevToolsをスムーズに行き来できます。</p></div></div>
+      <div class="service-card">
+        <div><h3>▣ &nbsp; AevTools</h3><p>タスク管理・メモ・便利なWebツールなどを利用できます。<br>既存のAevToolsサイトを開きます。</p></div>
+        <a class="tool-link" href="https://mylifereading6666-oss.github.io/AevTools/">AevToolsを開く <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+    <div class="notice">開発初期版：このページはAevNetworkのデザイン・ナビゲーション基盤です。ログイン、投稿、チャット、フレンド、大会、プロフィール保存などのオンライン機能は、認証/API連携を実装した後に利用可能になります。</div>
+  </div>
+</main>
+<footer><div class="wrap foot"><span>© <span id="year"></span> AevNetwork</span><span>CONNECT. COMPETE. CREATE.</span></div></footer>
+<script>
+  const menuBtn=document.getElementById('menuBtn');
+  const mobileNav=document.getElementById('mobileNav');
+  menuBtn.addEventListener('click',()=>{const open=mobileNav.classList.toggle('open');menuBtn.setAttribute('aria-expanded',String(open));});
+  mobileNav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{mobileNav.classList.remove('open');menuBtn.setAttribute('aria-expanded','false');}));
+  document.getElementById('year').textContent=new Date().getFullYear();
+</script>
+</body>
+</html>
