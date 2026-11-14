@@ -173,11 +173,22 @@ body.menu-open{overflow:hidden!important;height:100dvh;overscroll-behavior:none;
     if(networkSession?.user?.id)localStorage.setItem(localDataKey(networkSession.user.id),JSON.stringify(networkData));
     else localStorage.setItem('aevnetwork_guest_data',JSON.stringify(networkData));
   }
-  async function apiRequest(action,extra={}){
+  async function sendApi(action,extra={},session=networkSession){
     const headers={'Content-Type':'application/json'};
-    if(networkSession?.access_token)headers.Authorization='Bearer '+networkSession.access_token;
+    if(session?.access_token)headers.Authorization='Bearer '+session.access_token;
     const response=await fetch(AEVNETWORK_API,{method:'POST',headers,body:JSON.stringify({action,...extra})});
     const result=await response.json().catch(()=>({}));
+    return {response,result};
+  }
+  async function apiRequest(action,extra={}){
+    let {response,result}=await sendApi(action,extra);
+    if(response.status===401&&action!=='login'&&action!=='refresh'&&networkSession?.refresh_token){
+      const refreshed=await sendApi('refresh',{refresh_token:networkSession.refresh_token},null);
+      if(!refreshed.response.ok)throw new Error('セッションの有効期限が切れています。再ログインしてください。');
+      networkSession=refreshed.result.session;
+      localStorage.setItem(SESSION_KEY,JSON.stringify(networkSession));
+      ({response,result}=await sendApi(action,extra));
+    }
     if(!response.ok)throw new Error(result.error||'API通信に失敗しました');
     return result;
   }
