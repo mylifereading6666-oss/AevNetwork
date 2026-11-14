@@ -77,7 +77,7 @@ function safeFeedEmbed(value){try{const u=new URL(value);return u.protocol==='ht
 async function loadPublicFeed(kind,target){
  const el=$(target);if(!el)return;
  try{
-  const r=await call('public_list_content',{kind}),items=r.items||[];
+  const r=await call('public_list_content',{kind}),items=(r.items||[]).slice().sort((a,b)=>{const ta=Date.parse(a.created_at||a.published_at||'')||0,tb=Date.parse(b.created_at||b.published_at||'')||0;return tb-ta;});
   el.innerHTML=items.length?items.map(x=>{
    const image=safeFeedUrl(x.image_url||'');
    const embed=safeFeedEmbed(x.video_embed_url||'');
