@@ -21,6 +21,14 @@
 <p id="maintenanceStatus" class="status" aria-live="polite">状態を確認しています…</p>
 <button class="secondary" id="toggleMaintenance" type="button">状態を読み込み中…</button>
 </section>
+<section class="panel" id="testHelperPanel">
+<h2>🧪 テスト補助ユーザーの永久割り当て</h2>
+<p class="muted">管理者以外の登録ユーザーを1人だけ指定できます。割り当て後は変更・解除できません。テスト補助ユーザーはメンテナンス中も一般機能を利用できますが、管理者機能は使えません。</p>
+<p id="testHelperStatus" class="status" aria-live="polite">割り当て状態を確認しています…</p>
+<label for="testHelperUser">テスト補助ユーザー</label>
+<select id="testHelperUser" class="field"><option value="">ユーザー一覧から選択</option></select>
+<button class="primary" id="assignTestHelper" type="button">このユーザーを永久に割り当てる</button>
+</section>
 <section class="panel" id="diagnosticsPanel"><h2>🧪 システム診断</h2><p class="muted">このブラウザ・表示ページ・通信状態・管理APIを確認します。パスワード、アクセストークン、個人情報の値は診断レポートに含めません。</p><div class="actions"><button class="primary" id="runDiagnostics" type="button">診断を実行</button><button class="secondary" id="downloadDiagnostics" type="button" disabled>診断結果をダウンロード（JSON）</button></div><p id="diagnosticsStatus" class="status" aria-live="polite">まだ診断は実行されていません。</p><div id="diagnosticsResults" aria-live="polite"></div></section>
 <section class="panel"><div class="actions" style="justify-content:space-between;align-items:center"><h2>📊 サービス概要</h2><button class="secondary" id="refreshAllAdmin" type="button">全管理データを更新</button></div><div id="adminMetrics" class="grid"><p class="muted">読み込み中…</p></div></section>
 <section class="panel"><h2>🛡️ コミュニティ報告・モデレーション</h2><p class="muted">ユーザーから報告された投稿・コメントを確認し、削除または対応不要として処理できます。処理内容は管理ログに保存されます。</p><div id="communityReports"><p class="muted">読み込み中…</p></div></section>
