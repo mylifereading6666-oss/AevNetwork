@@ -22,7 +22,7 @@ function maintenanceOverlay(active){
  document.body.classList.toggle('maintenance-lock',active);
  if(!active){el?.remove();return;}
  if(document.documentElement.dataset.page==='account')return;
- if(!el){el=document.createElement('div');el.id='serviceMaintenanceOverlay';el.className='service-maintenance-overlay';el.innerHTML='<div class="service-maintenance-card"><div style="font-size:2rem">🛠️</div><h2>ただいまメンテナンス中です</h2><p>現在、AevTools・AevNetworkの機能を一時停止しています。作業完了までしばらくお待ちください。</p><p class="muted">管理者はテストのため通常どおり利用できます。</p></div>';document.body.append(el);}
+ if(!el){el=document.createElement('div');el.id='serviceMaintenanceOverlay';el.className='service-maintenance-overlay';el.innerHTML='<div class="service-maintenance-card"><div style="font-size:2rem">🛠️</div><h2>ただいまメンテナンス中です</h2><p>現在、AevTools・AevNetworkの機能を一時停止しています。作業完了までしばらくお待ちください。</p><p class="muted">管理者・テスト補助者はテストのため通常どおり利用できます。</p><a class="primary" href="account.html" style="display:inline-block;margin-top:12px;text-decoration:none">ログイン・アカウント</a></div>';document.body.append(el);}
 }
 async function refreshServiceMaintenance(){
  try{
