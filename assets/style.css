@@ -145,3 +145,14 @@ button.danger:disabled{opacity:.55;cursor:not-allowed}
 .profile-facts span{display:block;color:var(--muted);font-size:.78rem;margin-bottom:6px}
 .profile-facts strong{overflow-wrap:anywhere}
 @media(max-width:560px){.search-row{align-items:stretch;flex-direction:column}.search-row .field{width:100%}.search-row button{width:100%}.profile-banner{height:130px}.profile-detail-head{gap:12px;padding:0 14px}.profile-avatar{width:78px;height:78px;flex-basis:78px;border-radius:20px}.profile-detail-body{padding:14px}.profile-facts{grid-template-columns:1fr}.user-card{align-items:flex-start}.user-card-actions{width:100%}.user-card-actions>*{flex:1}}
+
+/* Verified account role badges */
+.role-badges{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;margin:4px 0;vertical-align:middle}
+.role-badge{display:inline-flex;align-items:center;gap:3px;border:1px solid;border-radius:999px;padding:3px 8px;font-size:10px;line-height:1.35;font-weight:900;letter-spacing:.04em;white-space:nowrap}
+.role-admin{color:#ffe49a;background:#6b4b142e;border-color:#b78b36}
+.role-leader{color:#b9d5ff;background:#24518a35;border-color:#5487c7}
+.role-blacklisted{color:#ffc0cc;background:#74263a55;border-color:#c45470}
+.user-identity-text{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.profile-detail-head .role-badges{margin:2px 0 6px}
+.team-member-row .role-badges{margin-left:7px}
+.team-chat-meta .role-badges{margin:0 3px}
