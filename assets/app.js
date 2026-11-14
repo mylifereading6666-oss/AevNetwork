@@ -11,6 +11,7 @@ function menu(open){sidebar?.classList.toggle('open',open);overlay?.classList.to
 hamb?.addEventListener('click',()=>menu(!sidebar.classList.contains('open')));
 overlay?.addEventListener('click',()=>menu(false));
 document.querySelectorAll('.navbtn').forEach(a=>{if(a.dataset.page===document.documentElement.dataset.page){a.classList.add('active');const g=a.closest('.navgroup');if(g)g.open=true;}a.addEventListener('click',()=>menu(false));});
+document.getElementById('headerAccountLink')?.addEventListener('click',()=>setTimeout(refreshServiceMaintenance,0));
 if($('year'))$('year').textContent=new Date().getFullYear();
 async function call(action,extra={}){const headers={'Content-Type':'application/json'};if(session?.access_token)headers.Authorization='Bearer '+session.access_token;const res=await fetch(API,{method:'POST',headers,body:JSON.stringify({action,...extra})});const data=await res.json().catch(()=>({}));if(!res.ok)throw Error([data.error||'API通信エラー',data.detail||'',data.code||'',data.hint||''].filter(Boolean).join(' / '));return data;}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
