@@ -85,3 +85,5 @@ table{display:block;max-width:100%;overflow-x:auto}
 .community-comment{padding:12px;margin:9px 0;background:#0b1223;border:1px solid #293653;border-radius:12px}
 .community-comment>p{white-space:pre-wrap;margin:0 0 8px}
 .community-comment-form{margin-top:14px}
+
+.community-image{display:block;max-width:100%;max-height:420px;object-fit:contain;border-radius:12px;margin:12px 0;border:1px solid var(--line)}
