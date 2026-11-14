@@ -95,3 +95,19 @@ table{display:block;max-width:100%;overflow-x:auto}
 .feed-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .feed-source{font-size:12px;color:var(--muted);margin-top:10px}
 .feed-source a{color:#a5b4fc;text-decoration:underline;text-underline-offset:3px}
+
+/* Team directory and member-only polling chat */
+.team-card{background:#0d1528;border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+.team-card-top,.team-member-row,.team-chat-meta{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.team-card h3{margin:0}.team-card p{line-height:1.7;margin:8px 0;color:#d3d9ed}
+.team-game,.team-count,.team-status{color:#b9a8ff;font-size:12px;font-weight:750}
+.team-member-row{padding:12px 0;border-bottom:1px solid var(--line)}
+.team-member-row p{margin:5px 0}.team-member-row .actions{margin:0}
+.team-chat-messages{height:min(52vh,520px);min-height:240px;overflow-y:auto;overscroll-behavior:contain;padding:12px;background:#080f20;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;gap:10px}
+.team-chat-message{max-width:88%;align-self:flex-start;background:#17223b;border:1px solid #344365;border-radius:14px 14px 14px 4px;padding:10px 13px}
+.team-chat-message.mine{align-self:flex-end;background:#29234b;border-color:#6252a5;border-radius:14px 14px 4px 14px}
+.team-chat-message p{white-space:pre-wrap;margin:7px 0 0;line-height:1.6}
+.team-chat-meta{font-size:11px;color:#b9c4df;flex-wrap:wrap}
+.team-chat-form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;margin-top:12px}
+.team-chat-form .field{margin:0}
+@media(max-width:600px){.team-chat-form{grid-template-columns:1fr}.team-chat-form button{width:100%}.team-card-top,.team-member-row{align-items:flex-start;flex-direction:column}.team-member-row .actions{width:100%;flex-direction:row}.team-member-row .actions>*{flex:1}}
