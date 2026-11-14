@@ -8,3 +8,16 @@
 .navgroup summary:hover{background:#8b7cff18;color:#fff}
 .navgroup .navbtn{margin:2px 7px;width:calc(100% - 14px)}
 .navgroup[hidden]{display:none}
+
+/* AevNetwork administrator and content feed */
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+.admin-item{margin:10px 0}
+.admin-user-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.content-feed{display:grid;gap:12px}
+.feed-item{background:linear-gradient(145deg,#151f37,#101729);border:1px solid var(--line);border-radius:15px;padding:18px}
+.feed-item h2,.feed-item h3{margin:0 0 9px}
+.feed-item p{white-space:pre-wrap;line-height:1.8;color:#d3d9ed}
+.feed-meta{font-size:12px;color:var(--muted);margin-top:12px}
+textarea.field{resize:vertical;min-height:90px}
+input[type=checkbox]{accent-color:#8b7cff}
+@media(max-width:600px){.admin-user-list{grid-template-columns:1fr}.actions>*{flex:1}}
