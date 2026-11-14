@@ -15,6 +15,49 @@ if($('year'))$('year').textContent=new Date().getFullYear();
 async function call(action,extra={}){const headers={'Content-Type':'application/json'};if(session?.access_token)headers.Authorization='Bearer '+session.access_token;const res=await fetch(API,{method:'POST',headers,body:JSON.stringify({action,...extra})});const data=await res.json().catch(()=>({}));if(!res.ok)throw Error([data.error||'API通信エラー',data.detail||'',data.code||'',data.hint||''].filter(Boolean).join(' / '));return data;}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function date(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?'—':d.toLocaleString('ja-JP');}
+let serviceMaintenanceEnabled=false;
+function maintenanceOverlay(active){
+ let el=$('serviceMaintenanceOverlay');
+ if(!active){el?.remove();return;}
+ if(document.documentElement.dataset.page==='account')return;
+ if(!el){el=document.createElement('div');el.id='serviceMaintenanceOverlay';el.className='service-maintenance-overlay';el.innerHTML='<div class="service-maintenance-card"><div style="font-size:2rem">🛠️</div><h2>ただいまメンテナンス中です</h2><p>現在、AevTools・AevNetworkの機能を一時停止しています。作業完了までしばらくお待ちください。</p><p class="muted">管理者はテストのため通常どおり利用できます。</p></div>';document.body.append(el);}
+}
+async function refreshServiceMaintenance(){
+ try{
+  const r=await call('service_get_status');serviceMaintenanceEnabled=r.maintenance_enabled===true;
+  maintenanceOverlay(serviceMaintenanceEnabled&&!isNetworkAdmin);
+  const status=$('maintenanceStatus'),button=$('toggleMaintenance');
+  if(status)status.textContent=serviceMaintenanceEnabled?'現在：メンテナンスモード ON（一般ユーザーは利用停止）':'現在：通常稼働中';
+  if(button){button.textContent=serviceMaintenanceEnabled?'メンテナンスモードを解除':'メンテナンスモードを有効化';button.classList.toggle('primary',!serviceMaintenanceEnabled);}
+ }catch(e){maintenanceOverlay(false);const status=$('maintenanceStatus');if(status)status.textContent='状態を取得できません：'+e.message;}
+}
+$('toggleMaintenance')?.addEventListener('click',async()=>{
+ if(!isNetworkAdmin)return;
+ const next=!serviceMaintenanceEnabled,b=$('toggleMaintenance');b.disabled=true;
+ try{await call('service_set_maintenance',{enabled:next});serviceMaintenanceEnabled=next;await refreshServiceMaintenance();}
+ catch(e){const s=$('maintenanceStatus');if(s)s.textContent='設定を保存できませんでした：'+e.message;}
+ finally{b.disabled=false;}
+});
+function assistDate(value){
+ if(!value)return '未設定';
+ const d=new Date(value);if(Number.isNaN(d.getTime()))return '未設定';
+ return d.toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function applyAnnouncementTemplate(kind){
+ const start=assistDate($('assistStartAt')?.value),end=assistDate($('assistEndAt')?.value);
+ const templates={
+ general:['【お知らせ】タイトルを入力してください','いつもAevTools・AevNetworkをご利用いただきありがとうございます。\n\nお知らせ内容：\n・\n\n今後ともよろしくお願いいたします。'],
+ maintenance:['【重要】サイト更新・メンテナンスのお知らせ','いつもAevTools・AevNetworkをご利用いただきありがとうございます。\n\nサービスの更新作業のため、下記の時間帯にメンテナンスを実施します。\n\n■実施日・時間\n開始：'+start+'\n終了予定：'+end+'\n※作業状況により終了時刻が前後する場合があります。\n\nメンテナンス中は一部またはすべての機能をご利用いただけません。ご不便をおかけして申し訳ございません。\n\n大切なデータについては、作業前にメールアプリを利用した保存、またはJSONファイルでのエクスポート・保存をおすすめします。\n\nご理解とご協力のほど、よろしくお願いいたします。'],
+ outage:['【重要】サービス障害・不具合について','現在、AevTools・AevNetworkにおいて以下の問題を確認しています。\n\n■発生している問題\n・\n■影響する機能\n・\n■現在の対応状況\n調査・復旧対応を進めています。\n\nご不便とご迷惑をおかけしており、誠に申し訳ございません。復旧状況は本お知らせを更新してご案内します。'],
+ release:['【アップデート】新機能・改善のお知らせ','AevTools・AevNetworkをアップデートしました。\n\n■主な変更点\n・\n・\n\nぜひ新機能をお試しください。今後ともよろしくお願いいたします。'],
+ event:['【開催告知】イベント・大会のお知らせ','イベント・大会を開催します。\n\n■開催日時\n日付・時間：\n■参加方法\n\n■注意事項\n\n皆さまのご参加をお待ちしています。']
+ };
+ const t=templates[kind];if(!t)return;
+ $('contentTitle').value=t[0];$('contentBody').value=t[1];
+ $('contentStatus').textContent='下書きを入力しました。日付・時刻・内容を確認して編集してください。';
+ $('contentTitle').focus();
+}
+document.querySelectorAll('[data-announcement-template]').forEach(b=>b.addEventListener('click',()=>applyAnnouncementTemplate(b.dataset.announcementTemplate)));
 async function refreshAdmin(){const group=$('adminNavGroup'),denied=$('adminOnly'),content=$('adminContent');if(!session){isNetworkAdmin=false;if(group)group.hidden=true;if(denied)denied.hidden=false;if(content)content.hidden=true;return false;}try{const r=await call('is_admin'),yes=r.is_admin===true;isNetworkAdmin=yes;if(group)group.hidden=!yes;if(document.documentElement.dataset.page==='admin'){if(denied)denied.hidden=yes;if(content)content.hidden=!yes;}return yes;}catch(e){isNetworkAdmin=false;if(group)group.hidden=true;if(document.documentElement.dataset.page==='admin'){if(denied){denied.hidden=false;denied.querySelector('p').textContent='管理者確認に失敗しました。通信状態を確認してください。';}if(content)content.hidden=true;}return false;}}
 function applyNetworkProfile(d={}){
  const accent=d.accent_color||'#8b7cff';
@@ -70,7 +113,7 @@ $('saveSharedProfile')?.addEventListener('click',async()=>{
 });
 function showAccount(){const out=$('accountLoggedOut'),inside=$('accountLoggedIn');if(out)out.hidden=!!session;if(inside)inside.hidden=!session;if($('accountEmailLabel'))$('accountEmailLabel').textContent=session?.user?.email||'';const headerAccount=$('headerAccountLink');if(headerAccount){headerAccount.textContent=session?'アカウント':'ログイン';headerAccount.setAttribute('aria-label',session?'アカウント設定を開く':'ログインページを開く');}if(status)status.textContent=session?'ログイン中です。':'ログインしていません。';}
 const status=$('accountStatus');
-$('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(page==='friends')await loadFriendsPage();if(page==='profile')await loadPublicProfilePage();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
+$('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(page==='friends')await loadFriendsPage();if(page==='profile')await loadPublicProfilePage();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
 $('accountLogout')?.addEventListener('click',()=>{localStorage.removeItem(KEY);session=null;showAccount();const pp=$('networkProfilePanel');if(pp)pp.hidden=true;refreshAdmin();if(status)status.textContent='ログアウトしました。';});
 function safeFeedUrl(value){try{const u=new URL(value,location.href);return u.protocol==='https:'?u.href:'';}catch(e){return '';}}
 function safeFeedEmbed(value){try{const u=new URL(value);return u.protocol==='https:'&&['www.youtube-nocookie.com','youtube-nocookie.com','platform.twitter.com'].includes(u.hostname)?u.href:'';}catch(e){return '';}}
@@ -98,6 +141,7 @@ async function loadMetrics(){const r=await call('admin_dashboard');const m=r.met
 async function loadContent(){
  const kind=$('adminKind').value,r=await call('admin_list_content',{kind}),items=r.items||[];
  $('categoryWrap').hidden=kind!=='news';
+ $('announcementAssist').hidden=kind!=='announcements';
  $('linkWrap').hidden=kind==='updates';
  $('videoWrap').hidden=kind!=='announcements';
  $('publishWrap').hidden=kind==='announcements';
@@ -342,5 +386,5 @@ function startSharedRealtime(){
   }
  }catch(e){console.warn('共有データのリアルタイム接続に失敗しました',e);}
 }
-(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(yes&&document.documentElement.dataset.page==='teams')await loadTeamAdminTools();if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='news')loadPublicFeed('news','publicNews');if(document.documentElement.dataset.page==='updates')loadPublicFeed('updates','publicUpdates');if(document.documentElement.dataset.page==='community')await loadCommunity();if(document.documentElement.dataset.page==='friends')await loadFriendsPage();if(document.documentElement.dataset.page==='profile')await loadPublicProfilePage();if(document.documentElement.dataset.page==='teams')await loadTeams();startSharedRealtime();}catch(e){localStorage.removeItem(KEY);session=null;showAccount();}})();
+(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(yes&&document.documentElement.dataset.page==='teams')await loadTeamAdminTools();if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='news')loadPublicFeed('news','publicNews');if(document.documentElement.dataset.page==='updates')loadPublicFeed('updates','publicUpdates');if(document.documentElement.dataset.page==='community')await loadCommunity();if(document.documentElement.dataset.page==='friends')await loadFriendsPage();if(document.documentElement.dataset.page==='profile')await loadPublicProfilePage();if(document.documentElement.dataset.page==='teams')await loadTeams();startSharedRealtime();setInterval(()=>{if(!document.hidden)refreshServiceMaintenance();},15000);}catch(e){localStorage.removeItem(KEY);session=null;showAccount();}})();
 })();
