@@ -116,27 +116,7 @@ $('saveSharedProfile')?.addEventListener('click',async()=>{
 });
 function showAccount(){const out=$('accountLoggedOut'),inside=$('accountLoggedIn');if(out)out.hidden=!!session;if(inside)inside.hidden=!session;if($('accountEmailLabel'))$('accountEmailLabel').textContent=session?.user?.email||'';const headerAccount=$('headerAccountLink');if(headerAccount){headerAccount.textContent=session?'アカウント':'ログイン';headerAccount.setAttribute('aria-label',session?'アカウント設定を開く':'ログインページを開く');}if(status)status.textContent=session?'ログイン中です。':'ログインしていません。';}
 const status=$('accountStatus');
-async function refreshTestHelperClaimPanel(){
- const panel=$('testHelperClaimPanel');if(!panel)return;
- if(!session){panel.hidden=true;return;}
- panel.hidden=false;
- const input=$('testHelperClaimCode'),button=$('claimTestHelperCode'),status=$('testHelperClaimStatus');
- try{
-  const s=await call('service_get_status');
-  if(s.is_admin){panel.hidden=true;return;}
-  if(s.is_test_helper){status.textContent='このアカウントはテスト補助ユーザーとして登録済みです。';input.disabled=true;button.disabled=true;return;}
-  if(s.test_helper_assigned){status.textContent='テスト補助ユーザーはすでに登録済みです。';input.disabled=true;button.disabled=true;return;}
-  status.textContent='管理者から受け取ったコードを入力できます。';
- }catch(e){status.textContent='状態を確認できません：'+e.message;}
-}
-$('claimTestHelperCode')?.addEventListener('click',async()=>{
- const input=$('testHelperClaimCode'),button=$('claimTestHelperCode'),status=$('testHelperClaimStatus'),code=input?.value.trim().toUpperCase();
- if(!code){status.textContent='コードを入力してください。';return;}
- button.disabled=true;
- try{await call('test_helper_claim_code',{code});status.textContent='登録しました。このアカウントが唯一のテスト補助ユーザーです。';input.disabled=true;}
- catch(e){status.textContent=e.message==='test_helper_code_invalid_or_used'?'コードが間違っているか、すでに使用されています。':e.message;button.disabled=false;}
-});
-$('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await refreshTestHelperClaimPanel();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(page==='friends')await loadFriendsPage();if(page==='profile')await loadPublicProfilePage();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
+$('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(page==='friends')await loadFriendsPage();if(page==='profile')await loadPublicProfilePage();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
 $('accountLogout')?.addEventListener('click',()=>{localStorage.removeItem(KEY);session=null;showAccount();const pp=$('networkProfilePanel');if(pp)pp.hidden=true;refreshAdmin();refreshServiceMaintenance();if(status)status.textContent='ログアウトしました。';});
 function safeFeedUrl(value){try{const u=new URL(value,location.href);return u.protocol==='https:'?u.href:'';}catch(e){return '';}}
 function safeFeedEmbed(value){try{const u=new URL(value);return u.protocol==='https:'&&['www.youtube-nocookie.com','youtube-nocookie.com','platform.twitter.com'].includes(u.hostname)?u.href:'';}catch(e){return '';}}
@@ -178,95 +158,6 @@ $('contentCancel')?.addEventListener('click',clearContentForm);
 $('adminKind')?.addEventListener('change',()=>{clearContentForm();loadContent().catch(e=>$('contentStatus').textContent=e.message);});
 $('adminContentForm')?.addEventListener('submit',async e=>{e.preventDefault();const kind=$('adminKind').value,item={id:$('contentId').value||undefined,title:$('contentTitle').value,body:$('contentBody').value,category:$('contentCategory').value,link_url:$('contentLink').value,video_url:$('contentVideo').value,published:$('contentPublished').checked};const b=e.submitter;b.disabled=true;try{await call('admin_save_content',{kind,item});clearContentForm();$('contentStatus').textContent='保存しました。';await loadContent();await loadMetrics();}catch(err){$('contentStatus').textContent='保存できませんでした：'+err.message;}finally{b.disabled=false;}});
 async function loadUsers(){const r=await call('admin_list_users',{page:1});adminUsers=r.users||[];$('adminUsers').innerHTML=adminUsers.length?'<div class="admin-user-list">'+adminUsers.map(u=>'<div class="card"><strong>'+esc(u.email||'(メール未登録)')+'</strong><p class="muted">登録：'+esc(date(u.created_at))+'<br>最終ログイン：'+esc(date(u.last_sign_in_at))+'</p></div>').join('')+'</div>':'<p class="muted">ユーザーはいません。</p>';$('blacklistUser').innerHTML='<option value="">ユーザーを選択</option>'+adminUsers.map(u=>'<option value="'+esc(u.id)+'">'+esc(u.email||u.id)+'</option>').join('');const helperSelect=$('testHelperUser');if(helperSelect)helperSelect.innerHTML='<option value="">ユーザーを選択</option>'+adminUsers.map(u=>'<option value="'+esc(u.id)+'">'+esc(u.email||u.id)+'</option>').join('');}
-async function loadTestHelper(){
- const status=$('testHelperStatus'),button=$('generateTestHelperCode'),result=$('testHelperCodeResult');
- if(!status)return;
- try{
-  const r=await call('admin_test_helper_get');
-  if(r.assigned){status.textContent='テスト補助ユーザー登録済みです。変更・解除はできません。';if(button)button.disabled=true;if(result)result.hidden=true;}
-  else if(r.code_ready){status.textContent='コードは発行済みです。再発行できません。登録を待っています。';if(button)button.disabled=true;}
-  else{status.textContent='未発行です。コードは一度だけ発行できます。';if(button)button.disabled=false;}
- }catch(e){status.textContent='状態を取得できません：'+e.message;if(button)button.disabled=true;}
-}
-$('generateTestHelperCode')?.addEventListener('click',async()=>{
- const button=$('generateTestHelperCode'),status=$('testHelperStatus'),result=$('testHelperCodeResult');
- if(!confirm('テスト補助ユーザー登録コードを一度だけ発行します。発行後の再発行はできません。続行しますか？'))return;
- button.disabled=true;
- try{const r=await call('admin_test_helper_generate_code');$('testHelperCodeValue').value=r.code;result.hidden=false;status.textContent='コードを発行しました。対象者に安全な方法で共有してください。';}
- catch(e){status.textContent='発行できませんでした：'+e.message;button.disabled=false;}
-});
-$('copyTestHelperCode')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('testHelperCodeValue').value);$('testHelperStatus').textContent='コードをコピーしました。';}catch(e){$('testHelperStatus').textContent='コピーできません。コードを長押ししてコピーしてください。';}});
-$('reloadUsers')?.addEventListener('click',()=>loadUsers().catch(e=>$('adminUsers').textContent=e.message));
-async function loadBlacklist(){const r=await call('admin_list_blacklist'),items=r.items||[];$('adminBlacklist').innerHTML=items.length?items.map(x=>'<div class="card"><strong>'+esc(x.email||x.user_id)+'</strong><p>'+esc(x.reason)+'</p><p class="muted">登録：'+esc(date(x.created_at))+'</p><button class="secondary" data-unblock="'+esc(x.user_id)+'">制限を解除</button></div>').join(''):'<p class="muted">ブラックリスト登録はありません。</p>';$('adminBlacklist').querySelectorAll('[data-unblock]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('このユーザーのAevNetwork利用制限を解除しますか？'))return;try{await call('admin_remove_blacklist',{user_id:b.dataset.unblock});await loadBlacklist();await loadMetrics();$('blacklistStatus').textContent='制限を解除しました。';}catch(e){$('blacklistStatus').textContent='解除できませんでした：'+e.message;}}));}
-$('addBlacklist')?.addEventListener('click',async()=>{const user_id=$('blacklistUser').value,reason=$('blacklistReason').value.trim();if(!user_id||!reason){$('blacklistStatus').textContent='対象ユーザーと理由を入力してください。';return;}try{await call('admin_add_blacklist',{user_id,reason});$('blacklistReason').value='';$('blacklistStatus').textContent='ブラックリストに追加しました。';await loadBlacklist();await loadMetrics();}catch(e){$('blacklistStatus').textContent='追加できませんでした：'+e.message;}});
-
-
-let communityStorageClient=null;
-async function getCommunityStorageClient(){
- if(!window.supabase)throw new Error('画像アップロード機能を読み込めません。');
- if(!communityStorageClient)communityStorageClient=window.supabase.createClient('https://vuqbbwdojwmtehgsyfaq.supabase.co','sb_publishable_BnrPnMn5fCDrXuloVe7XYw_W5R7JH4E',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
- if(!session?.access_token||!session?.refresh_token)throw new Error('ログイン状態を確認できません。再ログインしてください。');
- const {error}=await communityStorageClient.auth.setSession({access_token:session.access_token,refresh_token:session.refresh_token});
- if(error)throw error;
- return communityStorageClient;
-}
-async function loadBoardDeletionNotices(){
- const list=$('boardDeletionNotices'),badge=$('boardDeletionNoticeBadge');if(!list&&!badge)return;
- if(!session){if(list)list.innerHTML='<p class="muted">削除通知を見るにはログインしてください。</p>';if(badge)badge.hidden=true;return;}
- try{
-  const r=await call('community_my_deletion_notices'),items=r.items||[],unread=items.filter(x=>!x.read_at).length;
-  if(badge){badge.textContent=unread>99?'99+':String(unread);badge.hidden=unread===0;}
-  if(!list)return;
-  list.innerHTML=items.length?items.map(n=>'<article class="feed-item"><h3>'+(n.item_type==='post'?'投稿':'返信')+'が管理者によって削除されました</h3><div class="feed-meta">'+esc(date(n.created_at))+(n.read_at?' · 既読':' · 未読')+'</div><strong>削除された内容</strong><p>'+esc((n.item_type==='post'?(n.item_title||'')+'\n\n':'')+n.item_content)+'</p><strong>削除理由</strong><p>'+esc(n.reason)+'</p>'+(!n.read_at?'<button class="secondary" data-notice-read="'+esc(n.id)+'">既読にする</button>':'')+'</article>').join(''):'<p class="muted">削除通知はありません。</p>';
-  list.querySelectorAll('[data-notice-read]').forEach(b=>b.addEventListener('click',async()=>{b.disabled=true;try{await call('community_read_deletion_notice',{notice_id:b.dataset.noticeRead});await loadBoardDeletionNotices();}catch(e){b.disabled=false;alert('既読にできませんでした：'+e.message);}}));
- }catch(e){if(list)list.textContent='削除通知を読み込めませんでした：'+e.message;if(badge)badge.hidden=true;}
-}
-$('boardNoticesRefresh')?.addEventListener('click',loadBoardDeletionNotices);
-async function loadCommunity(){
- const list=$('communityPosts'),form=$('communityPostForm'),loginNote=$('communityLoginNote');
- if(!list)return;
- if(form)form.hidden=!session;
- if(loginNote)loginNote.hidden=!!session;
- list.innerHTML='<p class="muted">掲示板を読み込んでいます…</p>';
- try{
-  const r=await call('community_list_posts'),items=r.items||[];
-  if(!items.length){list.innerHTML='<p class="muted">まだ投稿はありません。最初の投稿を作成できます。</p>';await loadBoardDeletionNotices();return;}
-  list.innerHTML=items.map(p=>'<article class="feed-item community-post"><h3>'+esc(p.title)+'</h3><div class="feed-meta">'+esc(p.author_nickname)+' · '+esc(date(p.created_at))+'</div><p>'+esc(p.body)+'</p>'+(p.image_url&&/^https:\/\//i.test(p.image_url)?'<img class="community-image" src="'+esc(p.image_url)+'" alt="投稿画像" loading="lazy">':'')+'<div class="actions">'+(session&&(p.author_id===session.user?.id||isNetworkAdmin)?'<button class="secondary" data-post-delete="'+esc(p.id)+'">投稿を削除</button>':'')+(session&&p.author_id!==session.user?.id?'<button class="secondary" data-post-report="'+esc(p.id)+'">報告</button>':'')+'</div><div class="community-comments"><h4>返信 ('+(p.comments||[]).length+')</h4>'+((p.comments||[]).map(c=>'<div class="community-comment"><p>'+esc(c.body)+'</p><div class="feed-meta">'+esc(c.author_nickname)+' · '+esc(date(c.created_at))+'</div><div class="actions">'+(session&&(c.author_id===session.user?.id||isNetworkAdmin)?'<button class="secondary" data-comment-delete="'+esc(c.id)+'">返信を削除</button>':'')+(session&&c.author_id!==session.user?.id?'<button class="secondary" data-comment-report="'+esc(c.id)+'">報告</button>':'')+'</div></div>').join('')||'<p class="muted">返信はまだありません。</p>')+(session?'<form class="community-comment-form" data-comment-form="'+esc(p.id)+'"><label>返信</label><textarea class="field" name="body" rows="2" maxlength="2000" required placeholder="返信を入力"></textarea><button class="secondary" type="submit">返信する</button></form>':'')+'</div></article>').join('');
-  list.querySelectorAll('[data-post-delete]').forEach(b=>b.addEventListener('click',async()=>{
-   const post=items.find(x=>x.id===b.dataset.postDelete),moderator=isNetworkAdmin&&post?.author_id!==session?.user?.id;let reason='';
-   if(moderator){reason=prompt('管理者削除の理由を入力してください（3文字以上）');if(reason===null)return;if(reason.trim().length<3){alert('削除理由を3文字以上入力してください。');return;}}
-   if(!confirm('この投稿を削除しますか？'))return;
-   b.disabled=true;try{await call('community_delete_post',{id:b.dataset.postDelete,reason});await loadCommunity();}catch(e){b.disabled=false;alert('削除できませんでした：'+e.message);}
-  }));
-  list.querySelectorAll('[data-comment-delete]').forEach(b=>b.addEventListener('click',async()=>{
-   const comment=items.flatMap(x=>x.comments||[]).find(x=>x.id===b.dataset.commentDelete),moderator=isNetworkAdmin&&comment?.author_id!==session?.user?.id;let reason='';
-   if(moderator){reason=prompt('管理者削除の理由を入力してください（3文字以上）');if(reason===null)return;if(reason.trim().length<3){alert('削除理由を3文字以上入力してください。');return;}}
-   if(!confirm('この返信を削除しますか？'))return;
-   b.disabled=true;try{await call('community_delete_comment',{id:b.dataset.commentDelete,reason});await loadCommunity();}catch(e){b.disabled=false;alert('削除できませんでした：'+e.message);}
-  }));
-  list.querySelectorAll('[data-post-report],[data-comment-report]').forEach(b=>b.addEventListener('click',async()=>{const isPost=b.hasAttribute('data-post-report'),targetId=b.dataset.postReport||b.dataset.commentReport,reason=prompt('報告理由を入力してください（5〜500文字）');if(reason===null)return;try{await call('community_report',{target_type:isPost?'post':'comment',target_id:targetId,reason});alert('報告を送信しました。管理者が確認します。');}catch(e){alert('報告できませんでした：'+e.message);}}));
-  list.querySelectorAll('[data-comment-form]').forEach(f=>f.addEventListener('submit',async e=>{e.preventDefault();const b=f.querySelector('button[type=submit]');b.disabled=true;try{await call('community_create_comment',{post_id:f.dataset.commentForm,body:f.elements.body.value});await loadCommunity();}catch(err){alert('返信できませんでした：'+err.message);b.disabled=false;}}));
-  await loadBoardDeletionNotices();
- }catch(e){list.innerHTML='<p class="muted">掲示板を読み込めませんでした：'+esc(e.message)+'</p>';}
-}
-$('communityPostForm')?.addEventListener('submit',async e=>{
- e.preventDefault();const form=e.currentTarget,b=form.querySelector('button[type=submit]'),status=$('communityPostStatus'),file=form.elements.image?.files?.[0];
- b.disabled=true;status.textContent='投稿しています…';let imagePath=null,imageUrl=null,storage=null;
- try{
-  if(file){
-   if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)||file.size>5*1024*1024)throw new Error('画像はJPEG・PNG・WebP・GIF形式、5MB以内にしてください。');
-   storage=await getCommunityStorageClient();
-   const ext=({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'})[file.type];
-   imagePath=session.user.id+'/'+(crypto.randomUUID?crypto.randomUUID():String(Date.now()))+'.'+ext;
-   const {error}=await storage.storage.from('aev-board-images').upload(imagePath,file,{contentType:file.type,upsert:false});
-   if(error)throw error;
-   imageUrl=storage.storage.from('aev-board-images').getPublicUrl(imagePath).data.publicUrl;
-  }
-  await call('community_create_post',{title:form.elements.title.value,body:form.elements.body.value,image_url:imageUrl,image_path:imagePath});
-  form.reset();status.textContent='投稿しました。';await loadCommunity();
- }catch(err){if(imagePath&&storage)await storage.storage.from('aev-board-images').remove([imagePath]);status.textContent='投稿できませんでした：'+err.message;}
- finally{b.disabled=false;}
-});
 async function loadCommunityReports(){
  const el=$('communityReports');if(!el)return;
  try{const r=await call('community_admin_list_reports'),items=r.items||[];
@@ -329,7 +220,7 @@ $('runDiagnostics')?.addEventListener('click',()=>runNetworkDiagnostics().catch(
 $('downloadDiagnostics')?.addEventListener('click',()=>{if(!lastDiagnosticReport)return;const blob=new Blob([JSON.stringify(lastDiagnosticReport,null,2)],{type:'application/json;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='AevNetwork-diagnostics-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);$('diagnosticsStatus').textContent='診断レポートをダウンロードしました。';});
 $('refreshAllAdmin')?.addEventListener('click',async()=>{const b=$('refreshAllAdmin');b.disabled=true;b.textContent='更新中…';try{await Promise.all([loadMetrics(),loadContent(),loadUsers(),loadBlacklist(),loadCommunityReports()]);$('contentStatus').textContent='全管理データを更新しました。';}catch(e){$('contentStatus').textContent='一部の管理データを更新できませんでした：'+e.message;}finally{b.disabled=false;b.textContent='全管理データを更新';}});
 
-async function loadAdmin(){try{await Promise.all([loadMetrics(),loadContent(),loadUsers(),loadBlacklist(),loadCommunityReports()]);await loadTestHelper();}catch(e){const p=document.createElement('p');p.className='status';p.textContent='管理情報を読み込めませんでした：'+e.message;$('adminContent').prepend(p);}}
+async function loadAdmin(){try{await Promise.all([loadMetrics(),loadContent(),loadUsers(),loadBlacklist(),loadCommunityReports()]);}catch(e){const p=document.createElement('p');p.className='status';p.textContent='管理情報を読み込めませんでした：'+e.message;$('adminContent').prepend(p);}}
 
 let friendsRefreshTimer=null;
 function roleBadges(p={}){
