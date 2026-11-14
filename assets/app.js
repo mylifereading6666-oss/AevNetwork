@@ -210,9 +210,9 @@ $("teamMediationButton")?.addEventListener("click",async()=>{if(!activeTeamId)re
 $("teamHideChatButton")?.addEventListener("click",async()=>{if(!activeTeamId)return;if(!confirm("チームを退出し、このチームチャットを自分の一覧から削除しますか？自分の履歴は復元できません。他のメンバーの履歴には影響しません。"))return;try{await call("teams_chat_hide",{team_id:activeTeamId});closeTeam();await loadTeams();}catch(e){alert("削除できませんでした："+teamError(e));}});
 let selectedAdminAddTarget=null;
 function renderAdminAddOptions(teams,requests){
- const teamSelect=$("teamAdminAddTeam"),medSelect=$("teamAdminAddMediation");
- if(teamSelect)teamSelect.innerHTML='<option value="">チームを選択</option>'+(teams.items||[]).map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join("");
- if(medSelect)medSelect.innerHTML='<option value="">仲介依頼を選択</option>'+(requests.items||[]).filter(x=>x.status==="approved").map(x=>'<option value="'+esc(x.id)+'" data-team-id="'+esc(x.team_id)+'">'+esc(x.team_name)+' / '+esc(x.requester_nickname)+'（'+esc(x.message||"仲介依頼")+'）</option>').join("");
+ const teamSelect=$("teamAdminAddTeam"),medSelect=$("teamAdminAddMediation"),oldTeam=teamSelect?.value||"",oldMediation=medSelect?.value||"";
+ if(teamSelect){teamSelect.innerHTML='<option value="">チームを選択</option>'+(teams.items||[]).map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join("");if(oldTeam)teamSelect.value=oldTeam;}
+ if(medSelect){medSelect.innerHTML='<option value="">仲介依頼を選択</option>'+(requests.items||[]).filter(x=>x.status==="approved").map(x=>'<option value="'+esc(x.id)+'" data-team-id="'+esc(x.team_id)+'">'+esc(x.team_name)+' / '+esc(x.requester_nickname)+'（'+esc(x.message||"仲介依頼")+'）</option>').join("");if(oldMediation)medSelect.value=oldMediation;}
  updateAdminMediationSelect();
 }
 function updateAdminMediationSelect(){
