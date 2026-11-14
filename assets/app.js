@@ -14,7 +14,8 @@ async function refreshAdmin(){const group=$('adminNavGroup'),denied=$('adminOnly
 function applyNetworkProfile(d={}){
  const accent=d.accent_color||'#8b7cff';
  document.documentElement.style.setProperty('--blue',accent);
- document.documentElement.style.setProperty('--purple',d.name_color||'#ffffff');
+ document.documentElement.style.setProperty('--purple',accent);
+ document.documentElement.style.setProperty('--profile-name-color',d.name_color||'#ffffff');
  document.documentElement.dataset.profileTheme=d.theme||'midnight';
  document.documentElement.dataset.profileFont=d.font_style||'default';
  const name=$('accountEmailLabel');
