@@ -209,7 +209,7 @@ function startSharedRealtime(){
   sharedRealtimeClient=window.supabase.createClient('https://vuqbbwdojwmtehgsyfaq.supabase.co','sb_publishable_BnrPnMn5fCDrXuloVe7XYw_W5R7JH4E',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
   sharedRealtimeClient.channel('aev-shared-announcements')
    .on('postgres_changes',{event:'*',schema:'public',table:'aevtools_announcements'},()=>{
-    if(document.documentElement.dataset.page==='index')loadPublicFeed('announcements','publicAnnouncements');
+    if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');
     if(document.documentElement.dataset.page==='admin'&&$('adminKind')?.value==='announcements')loadContent();
    }).subscribe();
   if(document.documentElement.dataset.page==='community'){
