@@ -1,6 +1,11 @@
 (()=>{
 const API='https://vuqbbwdojwmtehgsyfaq.supabase.co/functions/v1/aevnetwork-api',KEY='aevnetwork_auth_session';
 let session=null,adminUsers=[];
+const diagnosticEvents={errors:[],rejections:[],resourceFailures:[]};
+window.addEventListener('error',e=>{diagnosticEvents.errors.push({message:String(e.message||'Script error'),file:e.filename?String(e.filename).split('/').pop():'',line:Number(e.lineno)||0,column:Number(e.colno)||0,time:new Date().toISOString()});if(diagnosticEvents.errors.length>100)diagnosticEvents.errors.shift();},true);
+window.addEventListener('unhandledrejection',e=>{diagnosticEvents.rejections.push({reason:String(e.reason?.message||e.reason||'Unhandled rejection').slice(0,300),time:new Date().toISOString()});if(diagnosticEvents.rejections.length>100)diagnosticEvents.rejections.shift();});
+window.addEventListener('error',e=>{if(e.target&&e.target!==window&&e.target.src)diagnosticEvents.resourceFailures.push({resource:String(e.target.src).split('/').pop(),type:e.target.tagName||'resource',time:new Date().toISOString()});},true);
+
 const $=id=>document.getElementById(id),sidebar=$('sidebar'),overlay=$('overlay'),hamb=$('hamb');
 function menu(open){sidebar?.classList.toggle('open',open);overlay?.classList.toggle('show',open);document.body.style.overflow=open?'hidden':'';hamb?.setAttribute('aria-expanded',String(open));}
 hamb?.addEventListener('click',()=>menu(!sidebar.classList.contains('open')));
@@ -78,6 +83,37 @@ async function loadUsers(){const r=await call('admin_list_users',{page:1});admin
 $('reloadUsers')?.addEventListener('click',()=>loadUsers().catch(e=>$('adminUsers').textContent=e.message));
 async function loadBlacklist(){const r=await call('admin_list_blacklist'),items=r.items||[];$('adminBlacklist').innerHTML=items.length?items.map(x=>'<div class="card"><strong>'+esc(x.email||x.user_id)+'</strong><p>'+esc(x.reason)+'</p><p class="muted">登録：'+esc(date(x.created_at))+'</p><button class="secondary" data-unblock="'+esc(x.user_id)+'">制限を解除</button></div>').join(''):'<p class="muted">ブラックリスト登録はありません。</p>';$('adminBlacklist').querySelectorAll('[data-unblock]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('このユーザーのAevNetwork利用制限を解除しますか？'))return;try{await call('admin_remove_blacklist',{user_id:b.dataset.unblock});await loadBlacklist();await loadMetrics();$('blacklistStatus').textContent='制限を解除しました。';}catch(e){$('blacklistStatus').textContent='解除できませんでした：'+e.message;}}));}
 $('addBlacklist')?.addEventListener('click',async()=>{const user_id=$('blacklistUser').value,reason=$('blacklistReason').value.trim();if(!user_id||!reason){$('blacklistStatus').textContent='対象ユーザーと理由を入力してください。';return;}try{await call('admin_add_blacklist',{user_id,reason});$('blacklistReason').value='';$('blacklistStatus').textContent='ブラックリストに追加しました。';await loadBlacklist();await loadMetrics();}catch(e){$('blacklistStatus').textContent='追加できませんでした：'+e.message;}});
+
+function diagnosticRow(label,value,ok=true){return '<div class="card" style="margin:8px 0"><strong>'+esc(label)+'</strong><p class="muted">'+esc(value)+'</p><span class="feed-meta">'+(ok?'確認':'要確認')+'</span></div>';}
+let lastDiagnosticReport=null;
+async function runNetworkDiagnostics(){
+ const statusEl=$('diagnosticsStatus'),resultEl=$('diagnosticsResults'),download=$('downloadDiagnostics'),button=$('runDiagnostics');
+ button.disabled=true;download.disabled=true;statusEl.textContent='診断を実行しています…';resultEl.innerHTML='';
+ const checks=[];const add=(name,value,ok=true)=>checks.push({name,value,ok});
+ const started=new Date();
+ add('ブラウザ接続',navigator.onLine?'オンライン':'オフライン',navigator.onLine);
+ add('表示ページ',location.pathname+' / '+(document.documentElement.dataset.page||'unknown'));
+ add('画面サイズ',window.innerWidth+' × '+window.innerHeight+' px');
+ add('画面密度',String(window.devicePixelRatio||1)+'x');
+ add('ブラウザ情報',String(navigator.userAgent).slice(0,220));
+ add('JavaScript',typeof Promise==='function'&&typeof fetch==='function'?'基本APIを利用可能':'必要なAPIが不足',typeof Promise==='function'&&typeof fetch==='function');
+ let storageOK=false;try{const k='aevnetwork_diag_'+Date.now();localStorage.setItem(k,'1');storageOK=localStorage.getItem(k)==='1';localStorage.removeItem(k);}catch(e){}add('ローカルストレージ',storageOK?'読み書き可能':'利用不可または制限中',storageOK);
+ let apiOK=false,adminOK=false,apiMessage='';try{const r=await call('is_admin');apiOK=true;adminOK=r.is_admin===true;apiMessage=adminOK?'管理者API応答あり':'API応答あり（管理者権限を確認できません）';}catch(e){apiMessage=String(e.message||e);}
+ add('AevNetwork管理API',apiOK?apiMessage:'API通信失敗：'+apiMessage,apiOK&&adminOK);
+ const errors=diagnosticEvents.errors.slice(),rejections=diagnosticEvents.rejections.slice(),resources=diagnosticEvents.resourceFailures.slice();
+ add('JavaScriptエラー',errors.length+'件',errors.length===0);
+ add('未処理Promiseエラー',rejections.length+'件',rejections.length===0);
+ add('読み込み失敗リソース',resources.length+'件',resources.length===0);
+ const report={product:'AevNetwork',report_version:1,generated_at:started.toISOString(),page:{path:location.pathname,title:document.title},environment:{online:navigator.onLine,language:navigator.language,platform:navigator.platform,viewport:{width:window.innerWidth,height:window.innerHeight},device_pixel_ratio:window.devicePixelRatio||1,user_agent:navigator.userAgent},checks,events:{javascript_errors:errors,unhandled_rejections:rejections,resource_failures:resources},privacy:{note:'パスワード、アクセストークン、メールアドレス、プロフィール内容、ローカルストレージの値は含みません。'}};
+ lastDiagnosticReport=report;download.disabled=false;
+ resultEl.innerHTML=checks.map(x=>diagnosticRow(x.name,x.value,x.ok)).join('');
+ statusEl.textContent='診断完了：'+checks.filter(x=>!x.ok).length+'項目に確認事項があります。結果をJSONで保存できます。';
+ button.disabled=false;
+}
+$('runDiagnostics')?.addEventListener('click',()=>runNetworkDiagnostics().catch(e=>{$('diagnosticsStatus').textContent='診断に失敗しました：'+e.message;$('runDiagnostics').disabled=false;}));
+$('downloadDiagnostics')?.addEventListener('click',()=>{if(!lastDiagnosticReport)return;const blob=new Blob([JSON.stringify(lastDiagnosticReport,null,2)],{type:'application/json;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='AevNetwork-diagnostics-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);$('diagnosticsStatus').textContent='診断レポートをダウンロードしました。';});
+$('refreshAllAdmin')?.addEventListener('click',async()=>{const b=$('refreshAllAdmin');b.disabled=true;b.textContent='更新中…';try{await Promise.all([loadMetrics(),loadContent(),loadUsers(),loadBlacklist()]);$('contentStatus').textContent='全管理データを更新しました。';}catch(e){$('contentStatus').textContent='一部の管理データを更新できませんでした：'+e.message;}finally{b.disabled=false;b.textContent='全管理データを更新';}});
+
 async function loadAdmin(){try{await Promise.all([loadMetrics(),loadContent(),loadUsers(),loadBlacklist()]);}catch(e){const p=document.createElement('p');p.className='status';p.textContent='管理情報を読み込めませんでした：'+e.message;$('adminContent').prepend(p);}}
 (async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();}catch(e){localStorage.removeItem(KEY);session=null;showAccount();}})();
 })();
