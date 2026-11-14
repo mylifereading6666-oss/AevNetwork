@@ -114,7 +114,27 @@ $('saveSharedProfile')?.addEventListener('click',async()=>{
 });
 function showAccount(){const out=$('accountLoggedOut'),inside=$('accountLoggedIn');if(out)out.hidden=!!session;if(inside)inside.hidden=!session;if($('accountEmailLabel'))$('accountEmailLabel').textContent=session?.user?.email||'';const headerAccount=$('headerAccountLink');if(headerAccount){headerAccount.textContent=session?'アカウント':'ログイン';headerAccount.setAttribute('aria-label',session?'アカウント設定を開く':'ログインページを開く');}if(status)status.textContent=session?'ログイン中です。':'ログインしていません。';}
 const status=$('accountStatus');
-$('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(page==='friends')await loadFriendsPage();if(page==='profile')await loadPublicProfilePage();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
+async function refreshTestHelperClaimPanel(){
+ const panel=$('testHelperClaimPanel');if(!panel)return;
+ if(!session){panel.hidden=true;return;}
+ panel.hidden=false;
+ const input=$('testHelperClaimCode'),button=$('claimTestHelperCode'),status=$('testHelperClaimStatus');
+ try{
+  const s=await call('service_get_status');
+  if(s.is_admin){panel.hidden=true;return;}
+  if(s.is_test_helper){status.textContent='このアカウントはテスト補助ユーザーとして登録済みです。';input.disabled=true;button.disabled=true;return;}
+  if(s.test_helper_assigned){status.textContent='テスト補助ユーザーはすでに登録済みです。';input.disabled=true;button.disabled=true;return;}
+  status.textContent='管理者から受け取ったコードを入力できます。';
+ }catch(e){status.textContent='状態を確認できません：'+e.message;}
+}
+$('claimTestHelperCode')?.addEventListener('click',async()=>{
+ const input=$('testHelperClaimCode'),button=$('claimTestHelperCode'),status=$('testHelperClaimStatus'),code=input?.value.trim().toUpperCase();
+ if(!code){status.textContent='コードを入力してください。';return;}
+ button.disabled=true;
+ try{await call('test_helper_claim_code',{code});status.textContent='登録しました。このアカウントが唯一のテスト補助ユーザーです。';input.disabled=true;}
+ catch(e){status.textContent=e.message==='test_helper_code_invalid_or_used'?'コードが間違っているか、すでに使用されています。':e.message;button.disabled=false;}
+});
+$('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await refreshTestHelperClaimPanel();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(page==='friends')await loadFriendsPage();if(page==='profile')await loadPublicProfilePage();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
 $('accountLogout')?.addEventListener('click',()=>{localStorage.removeItem(KEY);session=null;showAccount();const pp=$('networkProfilePanel');if(pp)pp.hidden=true;refreshAdmin();refreshServiceMaintenance();if(status)status.textContent='ログアウトしました。';});
 function safeFeedUrl(value){try{const u=new URL(value,location.href);return u.protocol==='https:'?u.href:'';}catch(e){return '';}}
 function safeFeedEmbed(value){try{const u=new URL(value);return u.protocol==='https:'&&['www.youtube-nocookie.com','youtube-nocookie.com','platform.twitter.com'].includes(u.hostname)?u.href:'';}catch(e){return '';}}
@@ -405,5 +425,5 @@ function startSharedRealtime(){
   }
  }catch(e){console.warn('共有データのリアルタイム接続に失敗しました',e);}
 }
-(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(yes&&document.documentElement.dataset.page==='teams')await loadTeamAdminTools();if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='news')loadPublicFeed('news','publicNews');if(document.documentElement.dataset.page==='updates')loadPublicFeed('updates','publicUpdates');if(document.documentElement.dataset.page==='community')await loadCommunity();if(document.documentElement.dataset.page==='friends')await loadFriendsPage();if(document.documentElement.dataset.page==='profile')await loadPublicProfilePage();if(document.documentElement.dataset.page==='teams')await loadTeams();startSharedRealtime();setInterval(()=>{if(!document.hidden)refreshServiceMaintenance();},15000);}catch(e){localStorage.removeItem(KEY);session=null;showAccount();}})();
+(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(yes&&document.documentElement.dataset.page==='teams')await loadTeamAdminTools();if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='news')loadPublicFeed('news','publicNews');if(document.documentElement.dataset.page==='updates')loadPublicFeed('updates','publicUpdates');if(document.documentElement.dataset.page==='community')await loadCommunity();if(document.documentElement.dataset.page==='friends')await loadFriendsPage();if(document.documentElement.dataset.page==='profile')await loadPublicProfilePage();if(document.documentElement.dataset.page==='teams')await loadTeams();startSharedRealtime();setInterval(()=>{if(!document.hidden)refreshServiceMaintenance();},15000);}catch(e){localStorage.removeItem(KEY);session=null;showAccount();refreshTestHelperClaimPanel();}})();
 })();
