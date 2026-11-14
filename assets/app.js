@@ -27,6 +27,7 @@ async function refreshServiceMaintenance(){
  try{
   const r=await call('service_get_status');serviceMaintenanceEnabled=r.maintenance_enabled===true;isNetworkTestHelper=r.is_test_helper===true;
   maintenanceOverlay(serviceMaintenanceEnabled&&!isNetworkAdmin&&!isNetworkTestHelper);
+  const helperBadge=$('testHelperTitleBadge');if(helperBadge)helperBadge.hidden=!isNetworkTestHelper;
   const status=$('maintenanceStatus'),button=$('toggleMaintenance');
   if(status)status.textContent=serviceMaintenanceEnabled?'現在：メンテナンスモード ON（一般ユーザーは利用停止）':'現在：通常稼働中';
   if(button){button.textContent=serviceMaintenanceEnabled?'メンテナンスモードを解除':'メンテナンスモードを有効化';button.classList.toggle('primary',!serviceMaintenanceEnabled);}
