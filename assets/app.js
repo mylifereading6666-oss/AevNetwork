@@ -11,11 +11,20 @@ async function call(action,extra={}){const headers={'Content-Type':'application/
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function date(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?'—':d.toLocaleString('ja-JP');}
 async function refreshAdmin(){const group=$('adminNavGroup'),denied=$('adminOnly'),content=$('adminContent');if(!session){if(group)group.hidden=true;if(denied)denied.hidden=false;if(content)content.hidden=true;return false;}try{const r=await call('is_admin'),yes=r.is_admin===true;if(group)group.hidden=!yes;if(document.documentElement.dataset.page==='admin'){if(denied)denied.hidden=yes;if(content)content.hidden=!yes;}return yes;}catch(e){if(group)group.hidden=true;if(document.documentElement.dataset.page==='admin'){if(denied){denied.hidden=false;denied.querySelector('p').textContent='管理者確認に失敗しました。通信状態を確認してください。';}if(content)content.hidden=true;}return false;}}
+function applyNetworkProfile(d={}){
+ const accent=d.accent_color||'#8b7cff';
+ document.documentElement.style.setProperty('--blue',accent);
+ document.documentElement.style.setProperty('--purple',d.name_color||'#ffffff');
+ document.documentElement.dataset.profileTheme=d.theme||'midnight';
+ document.documentElement.dataset.profileFont=d.font_style||'default';
+ const name=$('accountEmailLabel');
+ if(name&&d.name_color)name.style.color=d.name_color;
+}
 async function loadSharedProfile(){
  const panel=$('networkProfilePanel');if(!panel||!session)return;
  try{
   const r=await call('profile_get'),p=r.profile||{},d=p.profile||{};
-  panel.hidden=false;
+  applyNetworkProfile(d);panel.hidden=false;
   $('profileNickname').value=p.nickname||'';
   $('profileBio').value=d.bio||'';
   $('profileGame').value=d.favorite_game||'';
