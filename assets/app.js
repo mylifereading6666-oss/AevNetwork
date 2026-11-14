@@ -21,12 +21,26 @@ function applyNetworkProfile(d={}){
  const name=$('accountEmailLabel');
  if(name&&d.name_color)name.style.color=d.name_color;
 }
+function setNetworkNicknameLock(changedAt){
+ const input=$('profileNickname'),status=$('profileStatus');if(!input)return;
+ const changed=changedAt?new Date(changedAt):null,unlock=changed?changed.getTime()+14*24*60*60*1000:0;
+ const update=()=>{
+  const locked=!!changed&&Date.now()<unlock;
+  input.disabled=locked;
+  input.title=locked?'ニックネーム変更可能期間まで編集できません。':'';
+  if(locked&&status)status.textContent='ニックネーム変更は14日ごとです。次回変更可能：'+new Date(unlock).toLocaleString('ja-JP');
+  else if(status&&status.textContent.startsWith('ニックネーム変更は14日ごとです。'))status.textContent='ニックネームを変更できます。';
+  if(locked)setTimeout(update,Math.min(unlock-Date.now()+50,2147483000));
+ };
+ update();
+}
 async function loadSharedProfile(){
  const panel=$('networkProfilePanel');if(!panel||!session)return;
  try{
   const r=await call('profile_get'),p=r.profile||{},d=p.profile||{};
   applyNetworkProfile(d);panel.hidden=false;
   $('profileNickname').value=p.nickname||'';
+  setNetworkNicknameLock(p.nickname_changed_at);
   $('profileBio').value=d.bio||'';
   $('profileGame').value=d.favorite_game||'';
   $('profileStyle').value=d.play_style||'';
