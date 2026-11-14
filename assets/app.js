@@ -85,6 +85,27 @@ async function loadBlacklist(){const r=await call('admin_list_blacklist'),items=
 $('addBlacklist')?.addEventListener('click',async()=>{const user_id=$('blacklistUser').value,reason=$('blacklistReason').value.trim();if(!user_id||!reason){$('blacklistStatus').textContent='対象ユーザーと理由を入力してください。';return;}try{await call('admin_add_blacklist',{user_id,reason});$('blacklistReason').value='';$('blacklistStatus').textContent='ブラックリストに追加しました。';await loadBlacklist();await loadMetrics();}catch(e){$('blacklistStatus').textContent='追加できませんでした：'+e.message;}});
 
 
+let communityStorageClient=null;
+async function getCommunityStorageClient(){
+ if(!window.supabase)throw new Error('画像アップロード機能を読み込めません。');
+ if(!communityStorageClient)communityStorageClient=window.supabase.createClient('https://vuqbbwdojwmtehgsyfaq.supabase.co','sb_publishable_BnrPnMn5fCDrXuloVe7XYw_W5R7JH4E',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ if(!session?.access_token||!session?.refresh_token)throw new Error('ログイン状態を確認できません。再ログインしてください。');
+ const {error}=await communityStorageClient.auth.setSession({access_token:session.access_token,refresh_token:session.refresh_token});
+ if(error)throw error;
+ return communityStorageClient;
+}
+async function loadBoardDeletionNotices(){
+ const list=$('boardDeletionNotices'),badge=$('boardDeletionNoticeBadge');if(!list&&!badge)return;
+ if(!session){if(list)list.innerHTML='<p class="muted">削除通知を見るにはログインしてください。</p>';if(badge)badge.hidden=true;return;}
+ try{
+  const r=await call('community_my_deletion_notices'),items=r.items||[],unread=items.filter(x=>!x.read_at).length;
+  if(badge){badge.textContent=unread>99?'99+':String(unread);badge.hidden=unread===0;}
+  if(!list)return;
+  list.innerHTML=items.length?items.map(n=>'<article class="feed-item"><h3>'+(n.item_type==='post'?'投稿':'返信')+'が管理者によって削除されました</h3><div class="feed-meta">'+esc(date(n.created_at))+(n.read_at?' · 既読':' · 未読')+'</div><strong>削除された内容</strong><p>'+esc((n.item_type==='post'?(n.item_title||'')+'\n\n':'')+n.item_content)+'</p><strong>削除理由</strong><p>'+esc(n.reason)+'</p>'+(!n.read_at?'<button class="secondary" data-notice-read="'+esc(n.id)+'">既読にする</button>':'')+'</article>').join(''):'<p class="muted">削除通知はありません。</p>';
+  list.querySelectorAll('[data-notice-read]').forEach(b=>b.addEventListener('click',async()=>{b.disabled=true;try{await call('community_read_deletion_notice',{notice_id:b.dataset.noticeRead});await loadBoardDeletionNotices();}catch(e){b.disabled=false;alert('既読にできませんでした：'+e.message);}}));
+ }catch(e){if(list)list.textContent='削除通知を読み込めませんでした：'+e.message;if(badge)badge.hidden=true;}
+}
+$('boardNoticesRefresh')?.addEventListener('click',loadBoardDeletionNotices);
 async function loadCommunity(){
  const list=$('communityPosts'),form=$('communityPostForm'),loginNote=$('communityLoginNote');
  if(!list)return;
@@ -93,19 +114,41 @@ async function loadCommunity(){
  list.innerHTML='<p class="muted">掲示板を読み込んでいます…</p>';
  try{
   const r=await call('community_list_posts'),items=r.items||[];
-  if(!items.length){list.innerHTML='<p class="muted">まだ投稿はありません。最初の投稿を作成できます。</p>';return;}
-  list.innerHTML=items.map(p=>'<article class="feed-item community-post"><h3>'+esc(p.title)+'</h3><div class="feed-meta">'+esc(p.author_nickname)+' · '+esc(date(p.created_at))+'</div><p>'+esc(p.body)+'</p>'+(p.image_url&&/^https:\/\//i.test(p.image_url)?'<img class="community-image" src="'+esc(p.image_url)+'" alt="投稿画像" loading="lazy">':'')+'<div class="actions">'+(session&&(p.author_id===session.user?.id||isNetworkAdmin)?'<button class="secondary" data-post-delete="'+esc(p.id)+'">投稿を削除</button>':'')+(session&&p.author_id!==session.user?.id?'<button class="secondary" data-post-report="'+esc(p.id)+'">報告</button>':'')+'</div><div class="community-comments"><h4>コメント ('+(p.comments||[]).length+')</h4>'+((p.comments||[]).map(c=>'<div class="community-comment"><p>'+esc(c.body)+'</p><div class="feed-meta">'+esc(c.author_nickname)+' · '+esc(date(c.created_at))+'</div><div class="actions">'+(session&&(c.author_id===session.user?.id||isNetworkAdmin)?'<button class="secondary" data-comment-delete="'+esc(c.id)+'">削除</button>':'')+(session&&c.author_id!==session.user?.id?'<button class="secondary" data-comment-report="'+esc(c.id)+'">報告</button>':'')+'</div></div>').join('')||'<p class="muted">コメントはまだありません。</p>')+(session?'<form class="community-comment-form" data-comment-form="'+esc(p.id)+'"><label>コメント</label><textarea class="field" name="body" rows="2" maxlength="2000" required placeholder="コメントを入力"></textarea><button class="secondary" type="submit">コメントする</button></form>':'')+'</div></article>').join('');
-  list.querySelectorAll('[data-post-delete]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('この投稿を削除しますか？'))return;try{await call('community_delete_post',{id:b.dataset.postDelete});await loadCommunity();}catch(e){alert('削除できませんでした：'+e.message);}}));
-  list.querySelectorAll('[data-comment-delete]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('このコメントを削除しますか？'))return;try{await call('community_delete_comment',{id:b.dataset.commentDelete});await loadCommunity();}catch(e){alert('削除できませんでした：'+e.message);}}));
+  if(!items.length){list.innerHTML='<p class="muted">まだ投稿はありません。最初の投稿を作成できます。</p>';await loadBoardDeletionNotices();return;}
+  list.innerHTML=items.map(p=>'<article class="feed-item community-post"><h3>'+esc(p.title)+'</h3><div class="feed-meta">'+esc(p.author_nickname)+' · '+esc(date(p.created_at))+'</div><p>'+esc(p.body)+'</p>'+(p.image_url&&/^https:\/\//i.test(p.image_url)?'<img class="community-image" src="'+esc(p.image_url)+'" alt="投稿画像" loading="lazy">':'')+'<div class="actions">'+(session&&(p.author_id===session.user?.id||isNetworkAdmin)?'<button class="secondary" data-post-delete="'+esc(p.id)+'">投稿を削除</button>':'')+(session&&p.author_id!==session.user?.id?'<button class="secondary" data-post-report="'+esc(p.id)+'">報告</button>':'')+'</div><div class="community-comments"><h4>返信 ('+(p.comments||[]).length+')</h4>'+((p.comments||[]).map(c=>'<div class="community-comment"><p>'+esc(c.body)+'</p><div class="feed-meta">'+esc(c.author_nickname)+' · '+esc(date(c.created_at))+'</div><div class="actions">'+(session&&(c.author_id===session.user?.id||isNetworkAdmin)?'<button class="secondary" data-comment-delete="'+esc(c.id)+'">返信を削除</button>':'')+(session&&c.author_id!==session.user?.id?'<button class="secondary" data-comment-report="'+esc(c.id)+'">報告</button>':'')+'</div></div>').join('')||'<p class="muted">返信はまだありません。</p>')+(session?'<form class="community-comment-form" data-comment-form="'+esc(p.id)+'"><label>返信</label><textarea class="field" name="body" rows="2" maxlength="2000" required placeholder="返信を入力"></textarea><button class="secondary" type="submit">返信する</button></form>':'')+'</div></article>').join('');
+  list.querySelectorAll('[data-post-delete]').forEach(b=>b.addEventListener('click',async()=>{
+   const post=items.find(x=>x.id===b.dataset.postDelete),moderator=isNetworkAdmin&&post?.author_id!==session?.user?.id;let reason='';
+   if(moderator){reason=prompt('管理者削除の理由を入力してください（3文字以上）');if(reason===null)return;if(reason.trim().length<3){alert('削除理由を3文字以上入力してください。');return;}}
+   if(!confirm('この投稿を削除しますか？'))return;
+   b.disabled=true;try{await call('community_delete_post',{id:b.dataset.postDelete,reason});await loadCommunity();}catch(e){b.disabled=false;alert('削除できませんでした：'+e.message);}
+  }));
+  list.querySelectorAll('[data-comment-delete]').forEach(b=>b.addEventListener('click',async()=>{
+   const comment=items.flatMap(x=>x.comments||[]).find(x=>x.id===b.dataset.commentDelete),moderator=isNetworkAdmin&&comment?.author_id!==session?.user?.id;let reason='';
+   if(moderator){reason=prompt('管理者削除の理由を入力してください（3文字以上）');if(reason===null)return;if(reason.trim().length<3){alert('削除理由を3文字以上入力してください。');return;}}
+   if(!confirm('この返信を削除しますか？'))return;
+   b.disabled=true;try{await call('community_delete_comment',{id:b.dataset.commentDelete,reason});await loadCommunity();}catch(e){b.disabled=false;alert('削除できませんでした：'+e.message);}
+  }));
   list.querySelectorAll('[data-post-report],[data-comment-report]').forEach(b=>b.addEventListener('click',async()=>{const isPost=b.hasAttribute('data-post-report'),targetId=b.dataset.postReport||b.dataset.commentReport,reason=prompt('報告理由を入力してください（5〜500文字）');if(reason===null)return;try{await call('community_report',{target_type:isPost?'post':'comment',target_id:targetId,reason});alert('報告を送信しました。管理者が確認します。');}catch(e){alert('報告できませんでした：'+e.message);}}));
-  list.querySelectorAll('[data-comment-form]').forEach(f=>f.addEventListener('submit',async e=>{e.preventDefault();const b=f.querySelector('button[type=submit]');b.disabled=true;try{await call('community_create_comment',{post_id:f.dataset.commentForm,body:f.elements.body.value});await loadCommunity();}catch(err){alert('コメントできませんでした：'+err.message);b.disabled=false;}}));
+  list.querySelectorAll('[data-comment-form]').forEach(f=>f.addEventListener('submit',async e=>{e.preventDefault();const b=f.querySelector('button[type=submit]');b.disabled=true;try{await call('community_create_comment',{post_id:f.dataset.commentForm,body:f.elements.body.value});await loadCommunity();}catch(err){alert('返信できませんでした：'+err.message);b.disabled=false;}}));
+  await loadBoardDeletionNotices();
  }catch(e){list.innerHTML='<p class="muted">掲示板を読み込めませんでした：'+esc(e.message)+'</p>';}
 }
 $('communityPostForm')?.addEventListener('submit',async e=>{
- e.preventDefault();const form=e.currentTarget,b=form.querySelector('button[type=submit]'),status=$('communityPostStatus');
- b.disabled=true;status.textContent='投稿しています…';
- try{await call('community_create_post',{title:form.elements.title.value,body:form.elements.body.value});form.reset();status.textContent='投稿しました。';await loadCommunity();}
- catch(err){status.textContent='投稿できませんでした：'+err.message;}
+ e.preventDefault();const form=e.currentTarget,b=form.querySelector('button[type=submit]'),status=$('communityPostStatus'),file=form.elements.image?.files?.[0];
+ b.disabled=true;status.textContent='投稿しています…';let imagePath=null,imageUrl=null,storage=null;
+ try{
+  if(file){
+   if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)||file.size>5*1024*1024)throw new Error('画像はJPEG・PNG・WebP・GIF形式、5MB以内にしてください。');
+   storage=await getCommunityStorageClient();
+   const ext=({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'})[file.type];
+   imagePath=session.user.id+'/'+(crypto.randomUUID?crypto.randomUUID():String(Date.now()))+'.'+ext;
+   const {error}=await storage.storage.from('aev-board-images').upload(imagePath,file,{contentType:file.type,upsert:false});
+   if(error)throw error;
+   imageUrl=storage.storage.from('aev-board-images').getPublicUrl(imagePath).data.publicUrl;
+  }
+  await call('community_create_post',{title:form.elements.title.value,body:form.elements.body.value,image_url:imageUrl,image_path:imagePath});
+  form.reset();status.textContent='投稿しました。';await loadCommunity();
+ }catch(err){if(imagePath&&storage)await storage.storage.from('aev-board-images').remove([imagePath]);status.textContent='投稿できませんでした：'+err.message;}
  finally{b.disabled=false;}
 });
 async function loadCommunityReports(){
