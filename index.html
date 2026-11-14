@@ -20,24 +20,52 @@
     footer{border-top:1px solid var(--line);padding:28px 0 36px;color:var(--muted);font-size:.82rem}.foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.mobile-nav{display:none}
     @media(max-width:800px){.hero{grid-template-columns:1fr;padding-top:48px}.hero-art{min-height:230px}.grid,.news-grid{grid-template-columns:1fr 1fr}.top nav{display:none}.menu{display:block}.tool-link.desktop{display:none}.mobile-nav.open{display:flex;flex-direction:column;padding:8px 0 14px}.mobile-nav a{padding:12px;color:var(--muted);border-radius:9px}.mobile-nav a:hover{background:#1b2743;color:white}}
     @media(max-width:540px){.wrap{width:min(100% - 26px,1160px)}.grid,.news-grid{grid-template-columns:1fr}.hero h1{font-size:3.15rem}.hero-art{min-height:205px}.orb{width:145px;height:145px}.orb:after{font-size:4.8rem}.service-card{align-items:flex-start;flex-direction:column}.service-card .tool-link{width:100%}.section-head{align-items:flex-start;flex-direction:column}}
-  </style>
+  
+/* AevTools-aligned navigation */
+.topbar{height:68px;position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:14px;padding:0 20px;background:#0c0d17ef;backdrop-filter:blur(14px);border-bottom:1px solid #292b40}
+.hamb{display:grid;place-items:center;width:42px;height:42px;border:1px solid #292b40;background:#141624;color:#fff;border-radius:12px;font-size:22px;cursor:pointer}
+.brand{margin-right:auto}.brand-mark{flex:0 0 38px}
+.header-account{margin-left:auto}
+.header-auth-btn{display:inline-flex;border:1px solid #454760;background:#1b1d2e;color:#f3f4ff;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:750;white-space:nowrap}
+.sidebar{position:fixed;z-index:35;top:68px;bottom:0;left:0;width:250px;padding:22px 14px;background:#0e101b;border-right:1px solid #292b40;overflow-y:auto;overscroll-behavior:contain}
+.navlabel{font-size:11px;color:#777b9c;font-weight:700;letter-spacing:1.5px;padding:12px}
+.navbtn{width:100%;display:flex;align-items:center;gap:12px;border:0;color:#c7c9dd;background:transparent;padding:12px 14px;border-radius:12px;text-align:left;margin:3px 0;font-size:14px}
+.navbtn:hover,.navbtn.active{background:linear-gradient(90deg,#8b7cff26,#4fc9e812);color:#fff}
+.navicon{width:25px;text-align:center;font-size:18px}
+.overlay{display:none}
+main{margin-left:250px}
+body.menu-open{overflow:hidden!important;height:100dvh;overscroll-behavior:none;touch-action:none}
+@media(max-width:850px){
+ .topbar{height:60px;padding:0 10px;gap:8px}
+ .hamb{width:42px;height:42px;flex:0 0 42px}
+ .sidebar{top:60px;width:270px;transform:translateX(-105%);transition:transform .2s;box-shadow:0 16px 48px #0005}
+ .sidebar.open{transform:translateX(0);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+ .overlay.show{display:block;position:fixed;inset:60px 0 0;background:#0008;z-index:30}
+ main{margin-left:0}
+}
+@media(max-width:600px){.topbar{padding:0 8px;gap:7px}.brand{font-size:15px;gap:6px}.brand-mark{width:29px;height:29px;flex-basis:29px;border-radius:9px}.header-auth-btn{font-size:10px;padding:6px 7px}}
+</style>
 </head>
 <body>
-<header>
-  <div class="wrap">
-    <div class="top">
-      <a class="brand" href="#home" aria-label="AevNetwork ホーム"><span class="brand-mark">A</span><span>AevNetwork<small>GAMING COMMUNITY</small></span></a>
-      <nav aria-label="メインナビゲーション">
-        <a class="active" href="#home">ホーム</a><a href="#community">Community</a><a href="#news">News</a>
-      </nav>
-      <a class="tool-link desktop" href="https://mylifereading6666-oss.github.io/AevTools/">AevToolsへ移動 <span aria-hidden="true">↗</span></a>
-      <button class="menu" id="menuBtn" aria-expanded="false" aria-controls="mobileNav">☰ メニュー</button>
-    </div>
-    <nav class="mobile-nav" id="mobileNav" aria-label="モバイルナビゲーション">
-      <a href="#home">ホーム</a><a href="#community">Community</a><a href="#news">News</a><a href="https://mylifereading6666-oss.github.io/AevTools/">AevToolsへ移動 ↗</a>
-    </nav>
-  </div>
+<header class="topbar">
+  <button class="hamb" id="hamb" aria-label="メニューを開く" aria-expanded="false">☰</button>
+  <a class="brand" href="#home" aria-label="AevNetwork ホーム"><span class="brand-mark">A</span><span>AevNetwork<small>GAMING COMMUNITY</small></span></a>
+  <div class="header-account"><a class="header-auth-btn" href="https://mylifereading6666-oss.github.io/AevTools/">AevToolsへ ↗</a></div>
 </header>
+<aside class="sidebar" id="sidebar" aria-label="メインメニュー">
+  <div class="navlabel">AevNetwork MENU</div>
+  <a class="navbtn active" href="#home"><span class="navicon">⌂</span>ホーム</a>
+  <div class="navlabel">COMMUNITY</div>
+  <a class="navbtn" href="#community"><span class="navicon">▤</span>コミュニティ</a>
+  <a class="navbtn" href="#community"><span class="navicon">♧</span>フレンド・プロフィール</a>
+  <a class="navbtn" href="#community"><span class="navicon">♜</span>チーム・大会</a>
+  <div class="navlabel">AevNEWS</div>
+  <a class="navbtn" href="#news"><span class="navicon">▣</span>ニュース</a>
+  <a class="navbtn" href="#news"><span class="navicon">⚡</span>アップデート情報</a>
+  <div class="navlabel">Aev SERVICES</div>
+  <a class="navbtn" href="https://mylifereading6666-oss.github.io/AevTools/"><span class="navicon">⚒</span>AevToolsへ移動 ↗</a>
+</aside>
+<div class="overlay" id="overlay"></div>
 <main id="home">
   <div class="wrap">
     <section class="hero">
@@ -82,10 +110,24 @@
 </main>
 <footer><div class="wrap foot"><span>© <span id="year"></span> AevNetwork</span><span>CONNECT. COMPETE. CREATE.</span></div></footer>
 <script>
-  const menuBtn=document.getElementById('menuBtn');
-  const mobileNav=document.getElementById('mobileNav');
-  menuBtn.addEventListener('click',()=>{const open=mobileNav.classList.toggle('open');menuBtn.setAttribute('aria-expanded',String(open));});
-  mobileNav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{mobileNav.classList.remove('open');menuBtn.setAttribute('aria-expanded','false');}));
+  const hamb=document.getElementById('hamb');
+  const sidebar=document.getElementById('sidebar');
+  const overlay=document.getElementById('overlay');
+  function setMenu(open){
+    sidebar.classList.toggle('open',open);
+    overlay.classList.toggle('show',open);
+    document.body.classList.toggle('menu-open',open);
+    hamb.setAttribute('aria-expanded',String(open));
+    hamb.setAttribute('aria-label',open?'メニューを閉じる':'メニューを開く');
+  }
+  hamb.addEventListener('click',()=>setMenu(!sidebar.classList.contains('open')));
+  overlay.addEventListener('click',()=>setMenu(false));
+  sidebar.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{
+    sidebar.querySelectorAll('.navbtn').forEach(n=>n.classList.remove('active'));
+    if(a.classList.contains('navbtn'))a.classList.add('active');
+    setMenu(false);
+  }));
+  window.addEventListener('resize',()=>{if(window.innerWidth>850)setMenu(false)});
   document.getElementById('year').textContent=new Date().getFullYear();
 </script>
 </body>
