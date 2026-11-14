@@ -62,6 +62,8 @@ body.menu-open{overflow:hidden!important;height:100dvh;overscroll-behavior:none;
   <div class="navlabel">AevNEWS</div>
   <a class="navbtn" href="#news"><span class="navicon">▣</span>ニュース</a>
   <a class="navbtn" href="#news"><span class="navicon">⚡</span>アップデート情報</a>
+  <div class="navlabel">ACCOUNT</div>
+<a class="navbtn" href="#account"><span class="navicon">♙</span>アカウント・プロフィール</a>
   <div class="navlabel">Aev SERVICES</div>
   <a class="navbtn" href="https://mylifereading6666-oss.github.io/AevTools/"><span class="navicon">⚒</span>AevToolsへ移動 ↗</a>
 </aside>
@@ -98,6 +100,32 @@ body.menu-open{overflow:hidden!important;height:100dvh;overscroll-behavior:none;
       </div>
     </section>
 
+<section id="account">
+      <div class="section-head"><div><div class="eyebrow">AevNetwork Account</div><h2>アカウント・プロフィール</h2><p>AevToolsで登録したメールアドレスとパスワードでログインします。</p></div></div>
+      <div class="card" style="min-height:0">
+        <div id="accountLoggedOut">
+          <h3>AevTools共通アカウントでログイン</h3>
+          <p>新しいアカウントを作る必要はありません。AevToolsで登録済みのアカウントを使用してください。</p>
+          <label for="accountEmail" style="display:block;margin:14px 0 6px">メールアドレス</label>
+          <input id="accountEmail" type="email" autocomplete="username" placeholder="登録メールアドレス" style="width:100%;padding:12px;border-radius:10px;border:1px solid #425174;background:#0b1223;color:white">
+          <label for="accountPassword" style="display:block;margin:14px 0 6px">パスワード</label>
+          <input id="accountPassword" type="password" autocomplete="current-password" placeholder="パスワード" style="width:100%;padding:12px;border-radius:10px;border:1px solid #425174;background:#0b1223;color:white">
+          <button class="primary" id="accountLogin" style="border:0;margin-top:16px;cursor:pointer">ログイン</button>
+          <a class="secondary" href="https://mylifereading6666-oss.github.io/AevTools/" style="margin:16px 0 0 8px">AevToolsで登録・パスワード再設定</a>
+        </div>
+        <div id="accountLoggedIn" hidden>
+          <p style="color:#a5f3fc;font-weight:800">✓ ログイン中</p>
+          <p id="accountEmailLabel" style="color:#cbd5e1;overflow-wrap:anywhere"></p>
+          <label for="profileName" style="display:block;margin:14px 0 6px">AevNetwork表示名</label>
+          <input id="profileName" maxlength="24" placeholder="表示名を入力" style="width:100%;padding:12px;border-radius:10px;border:1px solid #425174;background:#0b1223;color:white">
+          <button class="primary" id="profileSave" style="border:0;margin-top:12px;cursor:pointer">プロフィールを保存</button>
+          <button class="secondary" id="cloudSave" style="margin:12px 0 0 8px;cursor:pointer">☁ 今すぐ保存</button>
+          <button class="secondary" id="accountLogout" style="margin:12px 0 0 8px;cursor:pointer">ログアウト</button>
+        </div>
+        <p id="accountStatus" role="status" style="color:#a5b4fc;margin:14px 0 0">ログインしていません。</p>
+      </div>
+      <div class="notice" style="margin-top:14px">AevNetworkのプロフィールデータは、ログイン中のアカウントごとに端末内へ保存し、APIを通じてクラウドへ同期する設計です。AevTools本体の既存データ領域とは分離して保存します。</div>
+    </section>
     <section aria-labelledby="services-title">
       <div class="section-head"><div><div class="eyebrow">Aev Services</div><h2 id="services-title">他のAevサービスへ移動</h2><p>AevNetworkとAevToolsをスムーズに行き来できます。</p></div></div>
       <div class="service-card">
@@ -129,6 +157,83 @@ body.menu-open{overflow:hidden!important;height:100dvh;overscroll-behavior:none;
   }));
   window.addEventListener('resize',()=>{if(window.innerWidth>850)setMenu(false)});
   document.getElementById('year').textContent=new Date().getFullYear();
+
+  const AEVNETWORK_API='https://vuqbbwdojwmtehgsyfaq.supabase.co/functions/v1/aevnetwork-api';
+  const SESSION_KEY='aevnetwork_auth_session';
+  let networkSession=null,networkData={},networkSaveTimer=null;
+  const statusEl=document.getElementById('accountStatus');
+  function setAccountView(session){
+    document.getElementById('accountLoggedOut').hidden=!!session;
+    document.getElementById('accountLoggedIn').hidden=!session;
+    document.getElementById('accountEmailLabel').textContent=session?.user?.email||'';
+    if(session)document.getElementById('profileName').value=networkData.displayName||'';
+  }
+  function localDataKey(userId){return 'aevnetwork_account_'+userId+'_data'}
+  function saveLocalNetworkData(){
+    if(networkSession?.user?.id)localStorage.setItem(localDataKey(networkSession.user.id),JSON.stringify(networkData));
+    else localStorage.setItem('aevnetwork_guest_data',JSON.stringify(networkData));
+  }
+  async function apiRequest(action,extra={}){
+    const headers={'Content-Type':'application/json'};
+    if(networkSession?.access_token)headers.Authorization='Bearer '+networkSession.access_token;
+    const response=await fetch(AEVNETWORK_API,{method:'POST',headers,body:JSON.stringify({action,...extra})});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||'API通信に失敗しました');
+    return result;
+  }
+  async function syncNetworkData(){
+    if(!networkSession)return false;
+    await apiRequest('save_data',{data:networkData});
+    statusEl.textContent='☁ クラウド保存完了 · '+new Date().toLocaleTimeString('ja-JP');
+    return true;
+  }
+  function queueNetworkSave(){
+    saveLocalNetworkData();
+    if(!networkSession)return;
+    clearTimeout(networkSaveTimer);
+    networkSaveTimer=setTimeout(()=>syncNetworkData().catch(e=>statusEl.textContent='クラウド保存失敗：'+e.message),800);
+  }
+  async function loadNetworkData(){
+    const localRaw=localStorage.getItem(localDataKey(networkSession.user.id));
+    let localData={};try{localData=JSON.parse(localRaw||'{}')||{}}catch{}
+    const result=await apiRequest('get_data');
+    const cloudData=result.data&&typeof result.data==='object'?result.data:{};
+    networkData={...cloudData,...localData};
+    saveLocalNetworkData();
+    if(JSON.stringify(networkData)!==JSON.stringify(cloudData))await syncNetworkData();
+  }
+  document.getElementById('accountLogin').addEventListener('click',async()=>{
+    const email=document.getElementById('accountEmail').value.trim();
+    const password=document.getElementById('accountPassword').value;
+    if(!email||!password){statusEl.textContent='メールアドレスとパスワードを入力してください。';return}
+    const button=document.getElementById('accountLogin');button.disabled=true;statusEl.textContent='ログインしています…';
+    try{
+      const result=await apiRequest('login',{email,password});
+      networkSession=result.session;localStorage.setItem(SESSION_KEY,JSON.stringify(networkSession));
+      await loadNetworkData();setAccountView(networkSession);
+      document.getElementById('accountPassword').value='';
+      statusEl.textContent='ログインしました。アカウントデータを読み込みました。';
+    }catch(e){networkSession=null;statusEl.textContent='ログインできませんでした：'+e.message+'（APIとSQLの設定が必要な場合があります）'}
+    finally{button.disabled=false}
+  });
+  document.getElementById('profileSave').addEventListener('click',()=>{
+    networkData.displayName=document.getElementById('profileName').value.trim().slice(0,24);
+    queueNetworkSave();statusEl.textContent='プロフィールを端末に保存しました。クラウド同期中…';
+  });
+  document.getElementById('cloudSave').addEventListener('click',async()=>{
+    try{await syncNetworkData()}catch(e){statusEl.textContent='保存に失敗しました：'+e.message}
+  });
+  document.getElementById('accountLogout').addEventListener('click',async()=>{
+    try{if(networkSession)await syncNetworkData()}catch(e){statusEl.textContent='保存に失敗したためログアウトを中止しました：'+e.message;return}
+    localStorage.removeItem(SESSION_KEY);networkSession=null;networkData={};setAccountView(null);statusEl.textContent='ログアウトしました。';
+  });
+  (async()=>{
+    try{
+      const saved=localStorage.getItem(SESSION_KEY);
+      if(saved){networkSession=JSON.parse(saved);await loadNetworkData();setAccountView(networkSession);statusEl.textContent='保存済みセッションを確認しました。'}
+      else{try{networkData=JSON.parse(localStorage.getItem('aevnetwork_guest_data')||'{}')||{}}catch{};setAccountView(null)}
+    }catch(e){localStorage.removeItem(SESSION_KEY);networkSession=null;setAccountView(null);statusEl.textContent='セッションを確認できません。再ログインしてください。'}
+  })();
 </script>
 </body>
 </html>
