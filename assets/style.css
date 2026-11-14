@@ -111,3 +111,8 @@ table{display:block;max-width:100%;overflow-x:auto}
 .team-chat-form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;margin-top:12px}
 .team-chat-form .field{margin:0}
 @media(max-width:600px){.team-chat-form{grid-template-columns:1fr}.team-chat-form button{width:100%}.team-card-top,.team-member-row{align-items:flex-start;flex-direction:column}.team-member-row .actions{width:100%;flex-direction:row}.team-member-row .actions>*{flex:1}}
+
+/* Team deletion / destructive actions */
+button.danger{background:#6f263d;border:1px solid #c45a78;color:#fff}
+button.danger:hover{background:#87304b}
+button.danger:disabled{opacity:.55;cursor:not-allowed}
