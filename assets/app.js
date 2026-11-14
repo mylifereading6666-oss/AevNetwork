@@ -148,5 +148,17 @@ $('downloadDiagnostics')?.addEventListener('click',()=>{if(!lastDiagnosticReport
 $('refreshAllAdmin')?.addEventListener('click',async()=>{const b=$('refreshAllAdmin');b.disabled=true;b.textContent='更新中…';try{await Promise.all([loadMetrics(),loadContent(),loadUsers(),loadBlacklist(),loadCommunityReports()]);$('contentStatus').textContent='全管理データを更新しました。';}catch(e){$('contentStatus').textContent='一部の管理データを更新できませんでした：'+e.message;}finally{b.disabled=false;b.textContent='全管理データを更新';}});
 
 async function loadAdmin(){try{await Promise.all([loadMetrics(),loadContent(),loadUsers(),loadBlacklist(),loadCommunityReports()]);}catch(e){const p=document.createElement('p');p.className='status';p.textContent='管理情報を読み込めませんでした：'+e.message;$('adminContent').prepend(p);}}
-(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(document.documentElement.dataset.page==='community')await loadCommunity();}catch(e){localStorage.removeItem(KEY);session=null;showAccount();}})();
+let sharedRealtimeClient=null;
+function startSharedRealtime(){
+ if(!window.supabase||sharedRealtimeClient)return;
+ try{
+  sharedRealtimeClient=window.supabase.createClient('https://vuqbbwdojwmtehgsyfaq.supabase.co','sb_publishable_BnrPnMn5fCDrXuloVe7XYw_W5R7JH4E',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+  sharedRealtimeClient.channel('aev-shared-announcements')
+   .on('postgres_changes',{event:'*',schema:'public',table:'aevtools_announcements'},()=>{
+    if(document.documentElement.dataset.page==='index')loadPublicFeed('announcements','publicAnnouncements');
+    if(document.documentElement.dataset.page==='admin'&&$('adminKind')?.value==='announcements')loadContent();
+   }).subscribe();
+ }catch(e){console.warn('共有お知らせのリアルタイム接続に失敗しました',e);}
+}
+(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(document.documentElement.dataset.page==='index')await loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='community')await loadCommunity();startSharedRealtime();}catch(e){localStorage.removeItem(KEY);session=null;showAccount();}})();
 })();
