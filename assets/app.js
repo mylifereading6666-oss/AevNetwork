@@ -70,7 +70,7 @@ $('saveSharedProfile')?.addEventListener('click',async()=>{
 });
 function showAccount(){const out=$('accountLoggedOut'),inside=$('accountLoggedIn');if(out)out.hidden=!!session;if(inside)inside.hidden=!session;if($('accountEmailLabel'))$('accountEmailLabel').textContent=session?.user?.email||'';const headerAccount=$('headerAccountLink');if(headerAccount){headerAccount.textContent=session?'アカウント':'ログイン';headerAccount.setAttribute('aria-label',session?'アカウント設定を開く':'ログインページを開く');}if(status)status.textContent=session?'ログイン中です。':'ログインしていません。';}
 const status=$('accountStatus');
-$('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
+$('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(page==='friends')await loadFriendsPage();if(page==='profile')await loadPublicProfilePage();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
 $('accountLogout')?.addEventListener('click',()=>{localStorage.removeItem(KEY);session=null;showAccount();const pp=$('networkProfilePanel');if(pp)pp.hidden=true;refreshAdmin();if(status)status.textContent='ログアウトしました。';});
 function safeFeedUrl(value){try{const u=new URL(value,location.href);return u.protocol==='https:'?u.href:'';}catch(e){return '';}}
 function safeFeedEmbed(value){try{const u=new URL(value);return u.protocol==='https:'&&['www.youtube-nocookie.com','youtube-nocookie.com','platform.twitter.com'].includes(u.hostname)?u.href:'';}catch(e){return '';}}
@@ -244,6 +244,74 @@ $('downloadDiagnostics')?.addEventListener('click',()=>{if(!lastDiagnosticReport
 $('refreshAllAdmin')?.addEventListener('click',async()=>{const b=$('refreshAllAdmin');b.disabled=true;b.textContent='更新中…';try{await Promise.all([loadMetrics(),loadContent(),loadUsers(),loadBlacklist(),loadCommunityReports()]);$('contentStatus').textContent='全管理データを更新しました。';}catch(e){$('contentStatus').textContent='一部の管理データを更新できませんでした：'+e.message;}finally{b.disabled=false;b.textContent='全管理データを更新';}});
 
 async function loadAdmin(){try{await Promise.all([loadMetrics(),loadContent(),loadUsers(),loadBlacklist(),loadCommunityReports()]);}catch(e){const p=document.createElement('p');p.className='status';p.textContent='管理情報を読み込めませんでした：'+e.message;$('adminContent').prepend(p);}}
+
+let friendsRefreshTimer=null;
+function userVisual(p){
+ const d=p.profile||{},avatar=safeFeedUrl(d.avatar_url||''),nameColor=/^#[0-9a-f]{6}$/i.test(d.name_color||'')?d.name_color:'#ffffff';
+ return '<div class="user-identity">'+(avatar?'<img class="user-avatar" src="'+esc(avatar)+'" alt="">':'<div class="user-avatar user-avatar-empty">👤</div>')+'<div><strong style="color:'+nameColor+'">'+esc(p.nickname||'ユーザー')+'</strong><p class="muted">'+esc(d.favorite_game||'ゲーム未設定')+'</p></div></div>';
+}
+function friendCard(p,actions=''){
+ return '<article class="user-card">'+userVisual(p)+'<div class="user-card-actions"><a class="secondary" href="profile.html?user='+encodeURIComponent(p.user_id)+'">プロフィール</a>'+actions+'</div></article>';
+}
+async function loadFriendsPage(){
+ const app=$('friendsApp'),note=$('friendsLoginNote');if(!app||!note)return;
+ if(!session){app.hidden=true;note.hidden=false;if(friendsRefreshTimer)clearInterval(friendsRefreshTimer);friendsRefreshTimer=null;return;}
+ note.hidden=true;app.hidden=false;
+ try{
+  const [r,me]=await Promise.all([call('friends_overview'),call('profile_get')]);
+  const p=me.profile||{},d=p.profile||{};
+  $('friendsMyProfile').innerHTML=userVisual({nickname:p.nickname||'ユーザー',profile:d,user_id:session.user.id});
+  const friends=r.friends||[],incoming=r.received||[],outgoing=r.sent||[];
+  $('friendsCount').textContent='('+friends.length+')';
+  $('friendsList').innerHTML=friends.length?friends.map(x=>friendCard(x.user||x,'<button class="danger" data-friend-action="remove" data-user-id="'+esc(x.user_id)+'">解除</button>')).join(''):'<p class="muted">まだフレンドはいません。ユーザー検索から申請できます。</p>';
+  $('friendsIncoming').innerHTML=incoming.length?incoming.map(x=>friendCard(x.user,'<button class="primary" data-friend-action="accept" data-request-id="'+esc(x.id)+'">承認</button><button class="secondary" data-friend-action="reject" data-request-id="'+esc(x.id)+'">拒否</button>')).join(''):'<p class="muted">届いた申請はありません。</p>';
+  $('friendsOutgoing').innerHTML=outgoing.length?outgoing.map(x=>friendCard(x.user,'<span class="muted">承認待ち</span>')).join(''):'<p class="muted">送信中の申請はありません。</p>';
+  if(!friendsRefreshTimer)friendsRefreshTimer=setInterval(()=>{if(document.documentElement.dataset.page==='friends'&&!document.hidden&&session)loadFriendsPage().catch(()=>{});},20000);
+ }catch(e){$('friendsSearchStatus').textContent='フレンド情報を読み込めませんでした：'+e.message;}
+}
+$('friendsRefresh')?.addEventListener('click',()=>loadFriendsPage());
+$('friendsSearchForm')?.addEventListener('submit',async e=>{
+ e.preventDefault();const q=$('friendsSearchInput').value.trim(),status=$('friendsSearchStatus'),out=$('friendsSearchResults');
+ if(q.length<2){status.textContent='2文字以上入力してください。';out.innerHTML='';return;}
+ status.textContent='検索中…';out.innerHTML='';
+ try{const r=await call('friends_search',{query:q});const items=r.items||[];
+  out.innerHTML=items.length?items.map(p=>{let action=p.relationship==='friend'?'<span class="muted">フレンド</span>':p.relationship==='sent'?'<span class="muted">申請中</span>':p.relationship==='received'?'<span class="muted">申請が届いています</span>':'<button class="primary" data-friend-action="send" data-user-id="'+esc(p.user_id)+'">フレンド申請</button>';return friendCard(p,action);}).join(''):'<p class="muted">ユーザーが見つかりませんでした。</p>';
+  status.textContent=items.length+'件見つかりました。';
+ }catch(err){status.textContent='検索できませんでした：'+err.message;}
+});
+$('friendsApp')?.addEventListener('click',async e=>{
+ const b=e.target.closest('[data-friend-action]');if(!b)return;
+ const action=b.dataset.friendAction;b.disabled=true;
+ try{
+  if(action==='send')await call('friends_request_send',{user_id:b.dataset.userId});
+  if(action==='accept'||action==='reject')await call('friends_request_respond',{request_id:b.dataset.requestId,decision:action==='accept'?'accepted':'rejected'});
+  if(action==='remove'){if(!confirm('このユーザーをフレンドから解除しますか？')){b.disabled=false;return;}await call('friends_remove',{user_id:b.dataset.userId});}
+  await loadFriendsPage();
+  if($('friendsSearchForm')&&$('friendsSearchInput').value.trim())$('friendsSearchForm').requestSubmit();
+ }catch(err){const map={already_friends:'すでにフレンドです。',friend_request_exists:'すでに申請を送っています。',friend_request_received:'相手から届いた申請を承認してください。',friend_request_not_found:'申請が見つかりません。'};alert(map[err.message]||'処理できませんでした：'+err.message);b.disabled=false;}
+});
+async function loadPublicProfilePage(){
+ const area=$('publicProfileArea'),note=$('profileLoginNote');if(!area||!note)return;
+ if(!session){area.hidden=true;note.hidden=false;return;}
+ note.hidden=true;area.hidden=false;
+ const target=new URLSearchParams(location.search).get('user'),own=!target||target===session.user.id,status=$('publicProfileStatus'),card=$('publicProfileCard'),actions=$('profileActions');
+ try{
+  const r=own?await call('profile_get'):await call('profile_public_get',{user_id:target}),p=own?(r.profile||{}):(r.profile||{}),d=p.profile||{};
+  const avatar=safeFeedUrl(d.avatar_url||''),banner=safeFeedUrl(d.banner_url||''),accent=/^#[0-9a-f]{6}$/i.test(d.accent_color||'')?d.accent_color:'#8b7cff',nameColor=/^#[0-9a-f]{6}$/i.test(d.name_color||'')?d.name_color:'#ffffff';
+  card.style.setProperty('--profile-accent',accent);
+  card.innerHTML=(banner?'<div class="profile-banner" style="background-image:linear-gradient(90deg,#080b18aa,#080b1855),url(&quot;'+esc(banner)+'&quot;)"></div>':'<div class="profile-banner profile-banner-empty"></div>')+'<div class="profile-detail-head">'+(avatar?'<img class="profile-avatar" src="'+esc(avatar)+'" alt="">':'<div class="profile-avatar profile-avatar-empty">👤</div>')+'<div><h2 style="color:'+nameColor+'">'+esc(p.nickname||'ユーザー')+'</h2><p class="muted">'+(d.favorite_game?esc(d.favorite_game):'ゲーム未設定')+'</p></div></div><div class="profile-detail-body"><p>'+esc(d.bio||'自己紹介はまだありません。')+'</p><div class="profile-facts"><div><span>プレイスタイル</span><strong>'+esc(d.play_style||'未設定')+'</strong></div><div><span>テーマ</span><strong>'+esc(({midnight:'ミッドナイト',neon:'ネオン',aurora:'オーロラ'})[d.theme]||'ミッドナイト')+'</strong></div></div></div>';
+  if(own){actions.innerHTML='<p class="muted">これはあなたの公開プロフィールです。表示ネームの変更は14日ごとです。</p><a class="primary" href="account.html">プロフィールを編集</a>';}
+  else{
+   const ov=await call('friends_overview'),friend=(ov.friends||[]).some(x=>(x.user||x).user_id===p.user_id),sent=(ov.sent||[]).some(x=>x.recipient_id===p.user_id),received=(ov.received||[]).find(x=>x.sender_id===p.user_id);
+   actions.innerHTML=friend?'<p class="muted">👥 フレンドです。</p>':sent?'<p class="muted">フレンド申請を送信済みです。承認をお待ちください。</p>':received?'<p class="muted">このユーザーからフレンド申請が届いています。</p><button class="primary" id="profileAcceptFriend">申請を承認</button><button class="secondary" id="profileRejectFriend">拒否</button>':'<button class="primary" id="profileAddFriend">フレンド申請を送る</button>';
+   $('profileAddFriend')?.addEventListener('click',async()=>{try{await call('friends_request_send',{user_id:p.user_id});await loadPublicProfilePage();}catch(e){status.textContent='申請できませんでした：'+e.message;}});
+   $('profileAcceptFriend')?.addEventListener('click',async()=>{try{await call('friends_request_respond',{request_id:received.id,decision:'accepted'});await loadPublicProfilePage();}catch(e){status.textContent='承認できませんでした：'+e.message;}});
+   $('profileRejectFriend')?.addEventListener('click',async()=>{try{await call('friends_request_respond',{request_id:received.id,decision:'rejected'});await loadPublicProfilePage();}catch(e){status.textContent='拒否できませんでした：'+e.message;}});
+  }
+  status.textContent='';
+ }catch(e){status.textContent='プロフィールを読み込めませんでした：'+(e.message==='profile_not_found'?'ユーザーが見つかりません。':e.message);card.innerHTML='';actions.innerHTML='';}
+}
+
 let sharedRealtimeClient=null;
 function startSharedRealtime(){
  if(!window.supabase||sharedRealtimeClient)return;
@@ -264,5 +332,5 @@ function startSharedRealtime(){
   }
  }catch(e){console.warn('共有データのリアルタイム接続に失敗しました',e);}
 }
-(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(yes&&document.documentElement.dataset.page==='teams')await loadTeamAdminTools();if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='news')loadPublicFeed('news','publicNews');if(document.documentElement.dataset.page==='updates')loadPublicFeed('updates','publicUpdates');if(document.documentElement.dataset.page==='community')await loadCommunity();if(document.documentElement.dataset.page==='teams')await loadTeams();startSharedRealtime();}catch(e){localStorage.removeItem(KEY);session=null;showAccount();}})();
+(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(yes&&document.documentElement.dataset.page==='teams')await loadTeamAdminTools();if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='news')loadPublicFeed('news','publicNews');if(document.documentElement.dataset.page==='updates')loadPublicFeed('updates','publicUpdates');if(document.documentElement.dataset.page==='community')await loadCommunity();if(document.documentElement.dataset.page==='friends')await loadFriendsPage();if(document.documentElement.dataset.page==='profile')await loadPublicProfilePage();if(document.documentElement.dataset.page==='teams')await loadTeams();startSharedRealtime();}catch(e){localStorage.removeItem(KEY);session=null;showAccount();}})();
 })();
