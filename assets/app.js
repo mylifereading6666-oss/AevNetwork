@@ -17,6 +17,24 @@ async function call(action,extra={}){const headers={'Content-Type':'application/
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function date(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?'—':d.toLocaleString('ja-JP');}
 let serviceMaintenanceEnabled=false;
+let snapshotRestoreAttemptedFor='';
+async function restoreOwnNetworkSnapshot(){
+ if(!session?.access_token||serviceMaintenanceEnabled)return;
+ const uid=String(session.user?.id||'');
+ if(!uid||snapshotRestoreAttemptedFor===uid)return;
+ try{
+  const response=await call('user_data_snapshot_restore');
+  const result=response.result||{};
+  if(result.restored===true){
+   snapshotRestoreAttemptedFor=uid;
+   // The restore transaction has completed and removed the snapshot.
+   // Reload once so every page reads the restored relational records.
+   window.location.reload();
+   return;
+  }
+  if(result.reason==='snapshot_not_found')snapshotRestoreAttemptedFor=uid;
+ }catch(e){console.warn('AevNetworkバックアップの復元に失敗しました',e);}
+}
 function maintenanceOverlay(active){
  let el=$('serviceMaintenanceOverlay');
  document.body.classList.toggle('maintenance-lock',active);
@@ -26,7 +44,12 @@ function maintenanceOverlay(active){
 }
 async function refreshServiceMaintenance(){
  try{
-  const r=await call('service_get_status');serviceMaintenanceEnabled=r.maintenance_enabled===true;isNetworkTestHelper=r.is_test_helper===true;
+  const r=await call('service_get_status');
+  const wasMaintenance=serviceMaintenanceEnabled;
+  serviceMaintenanceEnabled=r.maintenance_enabled===true;
+  if(!wasMaintenance&&serviceMaintenanceEnabled)snapshotRestoreAttemptedFor='';
+  if(wasMaintenance&&!serviceMaintenanceEnabled)await restoreOwnNetworkSnapshot();
+  isNetworkTestHelper=r.is_test_helper===true;
   maintenanceOverlay(serviceMaintenanceEnabled&&!isNetworkAdmin&&!isNetworkTestHelper);
   const helperBadge=$('testHelperTitleBadge');if(helperBadge)helperBadge.hidden=!isNetworkTestHelper;
   const status=$('maintenanceStatus'),button=$('toggleMaintenance');
@@ -116,7 +139,7 @@ $('saveSharedProfile')?.addEventListener('click',async()=>{
 });
 function showAccount(){const out=$('accountLoggedOut'),inside=$('accountLoggedIn');if(out)out.hidden=!!session;if(inside)inside.hidden=!session;if($('accountEmailLabel'))$('accountEmailLabel').textContent=session?.user?.email||'';const headerAccount=$('headerAccountLink');if(headerAccount){headerAccount.textContent=session?'アカウント':'ログイン';headerAccount.setAttribute('aria-label',session?'アカウント設定を開く':'ログインページを開く');}if(status)status.textContent=session?'ログイン中です。':'ログインしていません。';}
 const status=$('accountStatus');
-$('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(page==='friends')await loadFriendsPage();if(page==='profile')await loadPublicProfilePage();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
+$('accountLogin')?.addEventListener('click',async()=>{const email=$('accountEmail')?.value.trim(),password=$('accountPassword')?.value;if(!email||!password){if(status)status.textContent='メールアドレスとパスワードを入力してください。';return;}const b=$('accountLogin');b.disabled=true;try{const r=await call('login',{email,password});session=r.session;localStorage.setItem(KEY,JSON.stringify(session));showAccount();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();await restoreOwnNetworkSnapshot();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();const page=document.documentElement.dataset.page;if(page==='index'||page==='announcements')await loadPublicFeed('announcements','publicAnnouncements');if(page==='news')await loadPublicFeed('news','publicNews');if(page==='updates')await loadPublicFeed('updates','publicUpdates');if(page==='community')await loadCommunity();if(page==='friends')await loadFriendsPage();if(page==='profile')await loadPublicProfilePage();if(status)status.textContent='ログインしました。';$('accountPassword').value='';}catch(e){if(status)status.textContent='ログインできませんでした：'+e.message;}finally{b.disabled=false;}});
 $('accountLogout')?.addEventListener('click',()=>{localStorage.removeItem(KEY);session=null;showAccount();const pp=$('networkProfilePanel');if(pp)pp.hidden=true;refreshAdmin();refreshServiceMaintenance();if(status)status.textContent='ログアウトしました。';});
 function safeFeedUrl(value){try{const u=new URL(value,location.href);return u.protocol==='https:'?u.href:'';}catch(e){return '';}}
 function safeFeedEmbed(value){try{const u=new URL(value);return u.protocol==='https:'&&['www.youtube-nocookie.com','youtube-nocookie.com','platform.twitter.com'].includes(u.hostname)?u.href:'';}catch(e){return '';}}
@@ -318,5 +341,5 @@ function startSharedRealtime(){
   }
  }catch(e){console.warn('共有データのリアルタイム接続に失敗しました',e);}
 }
-(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(yes&&document.documentElement.dataset.page==='teams')await loadTeamAdminTools();if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='news')loadPublicFeed('news','publicNews');if(document.documentElement.dataset.page==='updates')loadPublicFeed('updates','publicUpdates');if(document.documentElement.dataset.page==='community')await loadCommunity();if(document.documentElement.dataset.page==='friends')await loadFriendsPage();if(document.documentElement.dataset.page==='profile')await loadPublicProfilePage();if(document.documentElement.dataset.page==='teams')await loadTeams();startSharedRealtime();setInterval(()=>{if(!document.hidden)refreshServiceMaintenance();},3000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshServiceMaintenance();});window.addEventListener('focus',refreshServiceMaintenance);}catch(e){localStorage.removeItem(KEY);session=null;showAccount();refreshTestHelperClaimPanel();}})();
+(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();await restoreOwnNetworkSnapshot();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(yes&&document.documentElement.dataset.page==='teams')await loadTeamAdminTools();if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='news')loadPublicFeed('news','publicNews');if(document.documentElement.dataset.page==='updates')loadPublicFeed('updates','publicUpdates');if(document.documentElement.dataset.page==='community')await loadCommunity();if(document.documentElement.dataset.page==='friends')await loadFriendsPage();if(document.documentElement.dataset.page==='profile')await loadPublicProfilePage();if(document.documentElement.dataset.page==='teams')await loadTeams();startSharedRealtime();setInterval(()=>{if(!document.hidden)refreshServiceMaintenance();},3000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshServiceMaintenance();});window.addEventListener('focus',refreshServiceMaintenance);}catch(e){localStorage.removeItem(KEY);session=null;showAccount();refreshTestHelperClaimPanel();}})();
 })();
