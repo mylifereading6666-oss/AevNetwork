@@ -79,6 +79,7 @@ DECLARE
   v_team public.aevnetwork_teams%rowtype;
   v_count integer;
   v_member public.aevnetwork_team_members%rowtype;
+  v_has_member boolean := false;
 BEGIN
   IF p_decision NOT IN ('accepted','rejected') THEN RAISE EXCEPTION 'invalid_team_invite_decision'; END IF;
   SELECT * INTO v_invite FROM public.aevnetwork_team_friend_invitations
@@ -103,12 +104,13 @@ BEGIN
 
   SELECT * INTO v_member FROM public.aevnetwork_team_members
     WHERE team_id=v_team.id AND user_id=p_user_id LIMIT 1 FOR UPDATE;
-  IF FOUND AND v_member.status='approved' THEN RAISE EXCEPTION 'already_team_member'; END IF;
+  v_has_member := FOUND;
+  IF v_has_member AND v_member.status='approved' THEN RAISE EXCEPTION 'already_team_member'; END IF;
   SELECT count(*) INTO v_count FROM public.aevnetwork_team_members
     WHERE team_id=v_team.id AND status='approved';
   IF v_count >= 4 THEN RAISE EXCEPTION 'team_full'; END IF;
 
-  IF FOUND THEN
+  IF v_has_member THEN
     UPDATE public.aevnetwork_team_members SET status='approved', role='member',
       reviewed_at=now(), created_at=now() WHERE id=v_member.id;
   ELSE
