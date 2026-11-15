@@ -1024,6 +1024,18 @@ Deno.serve(async (req: Request) => {
       if(friend)return respond(409,{error:"already_friends"});
       const {data:reverse}=await adminClient.from("aevnetwork_friend_requests").select("id").eq("sender_id",targetId).eq("recipient_id",userId).eq("status","pending").maybeSingle();
       if(reverse)return respond(409,{error:"friend_request_received"});
+      const {data:previous,error:previousError}=await adminClient.from("aevnetwork_friend_requests")
+        .select("id,status").eq("sender_id",userId).eq("recipient_id",targetId)
+        .in("status",["pending","rejected"]).order("created_at",{ascending:false}).limit(1).maybeSingle();
+      if(previousError)return respond(500,{error:"friend_request_check_failed"});
+      if(previous?.status==="pending")return respond(409,{error:"friend_request_exists"});
+      if(previous?.status==="rejected"){
+        const {error}=await adminClient.from("aevnetwork_friend_requests")
+          .update({status:"pending",created_at:new Date().toISOString(),responded_at:null})
+          .eq("id",previous.id).eq("status","rejected");
+        if(error)return respond(500,{error:"friend_request_send_failed"});
+        return respond(200,{sent:true,reopened:true});
+      }
       const {error}=await adminClient.from("aevnetwork_friend_requests").insert({sender_id:userId,recipient_id:targetId,status:"pending"});
       if(error)return respond(error.code==="23505"?409:500,{error:error.code==="23505"?"friend_request_exists":"friend_request_send_failed"});
       return respond(200,{sent:true});
