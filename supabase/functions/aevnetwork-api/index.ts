@@ -489,7 +489,7 @@ Deno.serve(async (req: Request) => {
       });
       if(error){
         const message=error.message||"";
-        const known=["team_not_found","team_leader_required","team_invite_target_not_friend","team_invite_already_member_or_applied","team_full"];
+        const known=["team_not_found","team_leader_required","team_invite_target_not_friend","team_invite_already_member_or_applied","team_invite_already_pending","team_full"];
         const code=known.find(x=>message.includes(x));
         if(code)return respond(code==="team_not_found"?404:code==="team_leader_required"?403:409,{error:code});
         console.error("teams_friend_invite_send RPC failed",{code:error.code??null,message:error.message??null,details:error.details??null});
