@@ -1,0 +1,2 @@
+[functions.aevnetwork-api]
+verify_jwt = false
