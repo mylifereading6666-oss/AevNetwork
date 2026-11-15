@@ -545,8 +545,21 @@ Deno.serve(async (req: Request) => {
     if (action === "teams_create") {
       const name=String(body?.name??"").trim(),description=String(body?.description??"").trim(),game=String(body?.game??"").trim();
       if(name.length<2||name.length>32||description.length>1000||game.length>60)return respond(400,{error:"invalid_team"});
+
+      // Fast user-facing check; the unique database index below is the concurrency-safe enforcement.
+      const {data:existingTeam,error:existingTeamError}=await adminClient.from("aevnetwork_teams").select("id").eq("owner_id",userId).limit(1).maybeSingle();
+      if(existingTeamError){
+        console.error("teams_create owner lookup failed",{code:existingTeamError.code??null,message:existingTeamError.message??null});
+        return respond(500,{error:"team_create_failed"});
+      }
+      if(existingTeam)return respond(409,{error:"team_already_created"});
+
       const {data:team,error}=await adminClient.from("aevnetwork_teams").insert({name,description,game,owner_id:userId}).select("id").single();
-      if(error)return respond(400,{error:"team_create_failed",detail:error.message});
+      if(error){
+        if(error.code==="23505"||String(error.message??"").includes("aevnetwork_teams_one_per_owner_idx"))return respond(409,{error:"team_already_created"});
+        console.error("teams_create insert failed",{code:error.code??null,message:error.message??null,details:error.details??null,hint:error.hint??null});
+        return respond(400,{error:"team_create_failed"});
+      }
       const {error:memberError}=await adminClient.from("aevnetwork_team_members").insert({team_id:team.id,user_id:userId,role:"leader",status:"approved",reviewed_at:new Date().toISOString()});
       if(memberError){await adminClient.from("aevnetwork_teams").delete().eq("id",team.id);return respond(500,{error:"team_owner_setup_failed"});}
       return respond(200,{created:true,team_id:team.id});
