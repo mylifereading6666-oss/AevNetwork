@@ -42,4 +42,4 @@ jobs:
             echo "::error::GitHub Secret SUPABASE_PROJECT_ID is missing."
             exit 1
           fi
-          supabase functions deploy aevnetwork-api --project-ref "$SUPABASE_PROJECT_ID"
+          supabase functions deploy aevnetwork-api --remote "$SUPABASE_PROJECT_ID" --yes
