@@ -126,3 +126,7 @@ REVOKE ALL ON FUNCTION public.aevnetwork_send_team_friend_invite(uuid,uuid,uuid)
 REVOKE ALL ON FUNCTION public.aevnetwork_respond_team_friend_invite(uuid,uuid,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.aevnetwork_send_team_friend_invite(uuid,uuid,uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.aevnetwork_respond_team_friend_invite(uuid,uuid,text) TO service_role;
+
+-- Disable the retired numeric-code RPCs; legacy columns are retained for non-destructive compatibility.
+DROP FUNCTION IF EXISTS public.aevnetwork_save_team_invite(uuid,text,timestamptz);
+DROP FUNCTION IF EXISTS public.aevnetwork_redeem_team_invite(text,uuid);
