@@ -928,6 +928,14 @@ Deno.serve(async (req: Request) => {
       return respond(200, { resolved: true, removed: remove });
     }
 
+    if (action === "presence_ping") {
+      const now = new Date().toISOString();
+      const { error } = await adminClient.from("aevtools_profiles")
+        .update({ last_seen_at: now }).eq("user_id", userId);
+      if (error) return respond(500, { error: "presence_update_failed" });
+      return respond(200, { online: true, last_seen_at: now });
+    }
+
     if (action === "friends_overview") {
       const [friendRows,received,sent]=await Promise.all([
         adminClient.from("aevnetwork_friendships").select("id,user_low,user_high,created_at").or(`user_low.eq.${userId},user_high.eq.${userId}`).order("created_at",{ascending:false}),
@@ -938,11 +946,11 @@ Deno.serve(async (req: Request) => {
       const friendIds=(friendRows.data??[]).map((x:any)=>x.user_low===userId?x.user_high:x.user_low);
       const requestIds: string[]=[...(received.data??[]).map((x:any)=>String(x.sender_id)),...(sent.data??[]).map((x:any)=>String(x.recipient_id))];
       const ids: string[]=[...new Set<string>([...friendIds.map((id:any)=>String(id)),...requestIds])];
-      const {data:profiles,error}=ids.length?await adminClient.from("aevtools_profiles").select("user_id,nickname,profile_data").in("user_id",ids):{data:[],error:null};
+      const {data:profiles,error}=ids.length?await adminClient.from("aevtools_profiles").select("user_id,nickname,profile_data,last_seen_at").in("user_id",ids):{data:[],error:null};
       if(error)return respond(500,{error:"friends_profiles_load_failed"});
       const map=new Map((profiles??[]).map((p:any)=>[p.user_id,p]));
       const badges=await getBadgeMap(ids);
-      const safe=(id:string)=>{const p:any=map.get(id)||{};return {user_id:id,nickname:p.nickname||"ユーザー",profile:p.profile_data||{},...(badges.get(String(id))||{})};};
+      const safe=(id:string)=>{const p:any=map.get(id)||{};const lastSeen=p.last_seen_at||null;const online=!!lastSeen&&(Date.now()-Date.parse(lastSeen)<=90*1000)&&(Date.now()-Date.parse(lastSeen)>=-30*1000);return {user_id:id,nickname:p.nickname||"ユーザー",profile:p.profile_data||{},online,last_seen_at:lastSeen,...(badges.get(String(id))||{})};};
       return respond(200,{friends:friendIds.map((id:string)=>safe(id)),received:(received.data??[]).map((x:any)=>({...x,user:safe(x.sender_id)})),sent:(sent.data??[]).map((x:any)=>({...x,user:safe(x.recipient_id)}))});
     }
 
