@@ -389,7 +389,7 @@ $('friendsApp')?.addEventListener('click',async e=>{
   if(action==='remove'){if(!confirm('このユーザーをフレンドから解除しますか？')){b.disabled=false;return;}await call('friends_remove',{user_id:b.dataset.userId});}
   await loadFriendsPage();
   if($('friendsSearchForm')&&$('friendsSearchInput').value.trim())$('friendsSearchForm').requestSubmit();
- }catch(err){const map={already_friends:'すでにフレンドです。',friend_request_exists:'すでに申請を送っています。',friend_request_received:'相手から届いた申請を承認してください。',friend_request_not_found:'申請が見つかりません。'};alert(map[err.message]||'処理できませんでした：'+err.message);b.disabled=false;}
+ }catch(err){const map={already_friends:'すでにフレンドです。',friend_request_exists:'すでに申請を送っています。',friend_request_received:'相手から届いた申請を承認してください。',friend_request_not_found:'申請が見つかりません。'};alert(map[err.message]||'処理できませんでした：'+err.message);b.disabled=false;if(action==='send')b.textContent='フレンド申請';}
 });
 let profileBadgeRefreshTimer=null;
 async function loadPublicProfilePage(){
