@@ -239,7 +239,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: authData, error: authError } = await authClient.auth.getUser(token);
     if (authError || !authData.user) return respond(401, { error: "invalid_session" });
-    const userId = authData.user.id;
+    const userId: string = String(authData.user.id);
 
     if (action === "community_my_deletion_notices") {
       const { data, error } = await adminClient.from("aevnetwork_community_deletion_notices")
@@ -521,11 +521,17 @@ Deno.serve(async (req: Request) => {
       ]);
       if(members.error||profiles.error||mine.error)return respond(500,{error:"teams_details_load_failed"});
       const names=new Map((profiles.data??[]).map((p:any)=>[p.user_id,p.nickname||"ユーザー"]));
-      const mineMap = new Map<string, { status: string; role: string }>((mine.data ?? []).map((m: any) => [String(m.team_id), { status: String(m.status), role: String(m.role) }]));
-      const badges=await getBadgeMap((teams??[]).map((t:any)=>t.owner_id));
-      return respond(200,{items:(teams??[]).map((t:any)=>({...t,owner_nickname:names.get(t.owner_id)||"ユーザー",owner_badges:badges.get(t.owner_id)||{},
-        member_count:(members.data??[]).filter((m:any)=>m.team_id===t.id&&m.status==="approved").length,
-        my_status:mineMap.get(t.id)?.status||null,my_role:mineMap.get(t.id)?.role||null}))});
+      const mineMap = new Map<string, { status: string; role: string }>();
+      for (const member of mine.data ?? []) {
+        mineMap.set(String((member as any).team_id), {
+          status: String((member as any).status ?? ""),
+          role: String((member as any).role ?? "")
+        });
+      }
+      const badges=await getBadgeMap((teams??[]).map((t:any)=>String(t.owner_id)));
+      return respond(200,{items:(teams??[]).map((t:any)=>({...t,owner_nickname:names.get(t.owner_id)||"ユーザー",owner_badges:badges.get(String(t.owner_id))||{},
+        member_count:(members.data??[]).filter((m:any)=>String(m.team_id)===String(t.id)&&m.status==="approved").length,
+        my_status:mineMap.get(String(t.id))?.status||null,my_role:mineMap.get(String(t.id))?.role||null}))});
     }
 
     if (action === "teams_create") {
@@ -930,13 +936,13 @@ Deno.serve(async (req: Request) => {
       ]);
       if(friendRows.error||received.error||sent.error)return respond(500,{error:"friends_load_failed"});
       const friendIds=(friendRows.data??[]).map((x:any)=>x.user_low===userId?x.user_high:x.user_low);
-      const requestIds=[...(received.data??[]).map((x:any)=>x.sender_id),...(sent.data??[]).map((x:any)=>x.recipient_id)];
-      const ids=[...new Set([...friendIds,...requestIds])];
+      const requestIds: string[]=[...(received.data??[]).map((x:any)=>String(x.sender_id)),...(sent.data??[]).map((x:any)=>String(x.recipient_id))];
+      const ids: string[]=[...new Set<string>([...friendIds.map((id:any)=>String(id)),...requestIds])];
       const {data:profiles,error}=ids.length?await adminClient.from("aevtools_profiles").select("user_id,nickname,profile_data").in("user_id",ids):{data:[],error:null};
       if(error)return respond(500,{error:"friends_profiles_load_failed"});
       const map=new Map((profiles??[]).map((p:any)=>[p.user_id,p]));
       const badges=await getBadgeMap(ids);
-      const safe=(id:string)=>{const p:any=map.get(id)||{};return {user_id:id,nickname:p.nickname||"ユーザー",profile:p.profile_data||{},...(badges.get(id)||{})};};
+      const safe=(id:string)=>{const p:any=map.get(id)||{};return {user_id:id,nickname:p.nickname||"ユーザー",profile:p.profile_data||{},...(badges.get(String(id))||{})};};
       return respond(200,{friends:friendIds.map((id:string)=>safe(id)),received:(received.data??[]).map((x:any)=>({...x,user:safe(x.sender_id)})),sent:(sent.data??[]).map((x:any)=>({...x,user:safe(x.recipient_id)}))});
     }
 
