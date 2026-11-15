@@ -369,7 +369,7 @@ $('friendsSearchForm')?.addEventListener('submit',async e=>{
  if(q.length<2){status.textContent='2文字以上入力してください。';out.innerHTML='';return;}
  status.textContent='検索中…';out.innerHTML='';
  try{const r=await call('friends_search',{query:q});const items=r.items||[];
-  out.innerHTML=items.length?items.map(p=>{let action=p.relationship==='friend'?'<span class="muted">フレンド</span>':p.relationship==='sent'?'<button class="secondary" type="button" disabled>申請済み</button>':p.relationship==='received'?'<span class="muted">申請が届いています</span>':'<button class="primary" data-friend-action="send" data-user-id="'+esc(p.user_id)+'">フレンド申請</button>';return friendCard(p,action);}).join(''):'<p class="muted">ユーザーが見つかりませんでした。</p>';
+  out.innerHTML=items.length?items.map(p=>{let action=p.relationship==='friend'?'<button class="secondary" type="button" disabled>フレンド追加済み</button>':p.relationship==='sent'?'<button class="secondary" type="button" disabled>申請済み</button>':p.relationship==='received'?'<span class="muted">申請が届いています</span>':'<button class="primary" data-friend-action="send" data-user-id="'+esc(p.user_id)+'">フレンド申請</button>';return friendCard(p,action);}).join(''):'<p class="muted">ユーザーが見つかりませんでした。</p>';
   status.textContent=items.length+'件見つかりました。';
  }catch(err){status.textContent='検索できませんでした：'+err.message;}
 });
@@ -405,7 +405,7 @@ async function loadPublicProfilePage(){
   if(own){actions.innerHTML='<p class="muted">これはあなたの公開プロフィールです。表示ネームの変更は14日ごとです。</p><a class="primary" href="account.html">プロフィールを編集</a>';}
   else{
    const ov=await call('friends_overview'),friend=(ov.friends||[]).some(x=>(x.user||x).user_id===p.user_id),sent=(ov.sent||[]).some(x=>x.recipient_id===p.user_id),received=(ov.received||[]).find(x=>x.sender_id===p.user_id);
-   actions.innerHTML=friend?'<p class="muted">👥 フレンドです。</p>':sent?'<p class="muted">フレンド申請を送信済みです。承認をお待ちください。</p>':received?'<p class="muted">このユーザーからフレンド申請が届いています。</p><button class="primary" id="profileAcceptFriend">申請を承認</button><button class="secondary" id="profileRejectFriend">拒否</button>':'<button class="primary" id="profileAddFriend">フレンド申請を送る</button>';
+   actions.innerHTML=friend?'<button class="secondary" type="button" disabled>フレンド追加済み</button><p class="muted">すでにフレンドのため、追加申請は送信できません。</p>':sent?'<p class="muted">フレンド申請を送信済みです。承認をお待ちください。</p>':received?'<p class="muted">このユーザーからフレンド申請が届いています。</p><button class="primary" id="profileAcceptFriend">申請を承認</button><button class="secondary" id="profileRejectFriend">拒否</button>':'<button class="primary" id="profileAddFriend">フレンド申請を送る</button>';
    $('profileAddFriend')?.addEventListener('click',async(e)=>{const button=e.currentTarget;button.disabled=true;button.textContent='送信中…';try{await call('friends_request_send',{user_id:p.user_id});await loadPublicProfilePage();status.textContent='フレンド申請を送信しました。相手の返答をお待ちください。';}catch(e){status.textContent='申請できませんでした：'+e.message;button.disabled=false;button.textContent='フレンド申請を送る';}});
    $('profileAcceptFriend')?.addEventListener('click',async()=>{try{await call('friends_request_respond',{request_id:received.id,decision:'accepted'});await loadPublicProfilePage();}catch(e){status.textContent='承認できませんでした：'+e.message;}});
    $('profileRejectFriend')?.addEventListener('click',async()=>{try{await call('friends_request_respond',{request_id:received.id,decision:'rejected'});await loadPublicProfilePage();}catch(e){status.textContent='拒否できませんでした：'+e.message;}});
