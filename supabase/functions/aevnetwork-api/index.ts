@@ -458,63 +458,62 @@ Deno.serve(async (req: Request) => {
       }]));
     }
 
-    if (action === "teams_invite_generate") {
-      const teamId=String(body?.team_id??"");
-      if(!teamId)return respond(400,{error:"invalid_team_id"});
-      const {data:team}=await adminClient.from("aevnetwork_teams").select("id,owner_id").eq("id",teamId).maybeSingle();
-      if(!team)return respond(404,{error:"team_not_found"});
-      if(team.owner_id!==userId)return respond(403,{error:"team_leader_required"});
-      const {count:approvedCount,error:countError}=await adminClient.from("aevnetwork_team_members")
-        .select("id",{count:"exact",head:true}).eq("team_id",teamId).eq("status","approved");
-      if(countError)return respond(500,{error:"team_capacity_check_failed"});
-      if((approvedCount??0)>=4)return respond(409,{error:"team_full"});
-      // The UNIQUE constraint on invite_code_hash is the final authority:
-      // even if two leaders generate codes at the same time, duplicate codes
-      // cannot be stored. Retry on unique-violation and return only after save.
-      for(let attempt=0;attempt<20;attempt++){
-        const random=new Uint8Array(4);crypto.getRandomValues(random);
-        const value=new DataView(random.buffer).getUint32(0);
-        const code=String(value%100000000).padStart(8,"0");
-        const hash=await hashTeamInvite(code);
-        const generatedAt=new Date().toISOString();
-        const {error}=await adminClient.rpc("aevnetwork_save_team_invite",{
-          p_team_id:teamId,p_code_hash:hash,p_generated_at:generatedAt
-        });
-        if(!error)return respond(200,{generated:true,code,generated_at:generatedAt,expires_at:new Date(new Date(generatedAt).getTime()+10*60*1000).toISOString()});
-        if((error.message||"").includes("team_full"))return respond(409,{error:"team_full"});
-        if(error.code==="23505")continue;
-        return respond(500,{error:"invite_code_save_failed"});
-      }
-      return respond(500,{error:"invite_code_generation_failed"});
+    if (action === "teams_friend_invites_overview") {
+      const [incoming,outgoing]=await Promise.all([
+        adminClient.from("aevnetwork_team_friend_invitations")
+          .select("id,team_id,inviter_id,created_at").eq("invitee_id",userId).eq("status","pending").order("created_at",{ascending:false}),
+        adminClient.from("aevnetwork_team_friend_invitations")
+          .select("id,team_id,invitee_id,created_at").eq("inviter_id",userId).eq("status","pending").order("created_at",{ascending:false})
+      ]);
+      if(incoming.error||outgoing.error)return respond(500,{error:"team_invites_load_failed"});
+      const teamIds=[...new Set([...(incoming.data??[]).map((x:any)=>x.team_id),...(outgoing.data??[]).map((x:any)=>x.team_id)])];
+      const userIds=[...new Set([...(incoming.data??[]).map((x:any)=>x.inviter_id),...(outgoing.data??[]).map((x:any)=>x.invitee_id)])];
+      const [teams,profiles]=await Promise.all([
+        teamIds.length?adminClient.from("aevnetwork_teams").select("id,name,game").in("id",teamIds):Promise.resolve({data:[],error:null}),
+        userIds.length?adminClient.from("aevtools_profiles").select("user_id,nickname").in("user_id",userIds):Promise.resolve({data:[],error:null})
+      ]);
+      if(teams.error||profiles.error)return respond(500,{error:"team_invites_details_failed"});
+      const teamMap=new Map((teams.data??[]).map((x:any)=>[x.id,x]));
+      const profileMap=new Map((profiles.data??[]).map((x:any)=>[x.user_id,x.nickname||"ユーザー"]));
+      return respond(200,{
+        incoming:(incoming.data??[]).map((x:any)=>({...x,team:teamMap.get(x.team_id)||null,inviter_nickname:profileMap.get(x.inviter_id)||"ユーザー"})),
+        outgoing:(outgoing.data??[]).map((x:any)=>({...x,team:teamMap.get(x.team_id)||null,invitee_nickname:profileMap.get(x.invitee_id)||"ユーザー"}))
+      });
     }
 
-    if (action === "teams_join_code") {
-      const code=String(body?.code??"").replace(/\s/g,"");
-      if(!/^\d{8}$/.test(code))return respond(400,{error:"invalid_invite_code"});
-      const hash=await hashTeamInvite(code);
-      const {data,error}=await adminClient.rpc("aevnetwork_redeem_team_invite",{
-        p_code_hash:hash,
-        p_user_id:userId
+    if (action === "teams_friend_invite_send") {
+      const teamId=String(body?.team_id??""),inviteeId=String(body?.invitee_id??"");
+      if(!teamId||!inviteeId)return respond(400,{error:"invalid_team_invite"});
+      const {data,error}=await adminClient.rpc("aevnetwork_send_team_friend_invite",{
+        p_team_id:teamId,p_inviter_id:userId,p_invitee_id:inviteeId
       });
       if(error){
         const message=error.message||"";
-        if(message.includes("team_full"))return respond(409,{error:"team_full"});
-        if(message.includes("already_team_member"))return respond(409,{error:"already_team_member"});
-        if(message.includes("invite_code_expired"))return respond(410,{error:"invite_code_expired"});
-        if(message.includes("invite_code_used_or_invalid"))return respond(409,{error:"invite_code_used_or_invalid"});
-
-        // Keep database diagnostics in Edge Function logs; never expose SQL details to clients.
-        console.error("teams_join_code RPC failed", {
-          code: error.code ?? null,
-          message: error.message ?? null,
-          details: error.details ?? null,
-          hint: error.hint ?? null
-        });
-        return respond(500,{error:"team_join_failed",diagnostic_code:error.code??null});
+        const known=["team_not_found","team_leader_required","team_invite_target_not_friend","team_invite_already_member_or_applied","team_full"];
+        const code=known.find(x=>message.includes(x));
+        if(code)return respond(code==="team_not_found"?404:code==="team_leader_required"?403:409,{error:code});
+        console.error("teams_friend_invite_send RPC failed",{code:error.code??null,message:error.message??null,details:error.details??null});
+        return respond(500,{error:"team_invite_send_failed"});
       }
-      const redeemed=Array.isArray(data)?data[0]:data;
-      if(!redeemed?.team_id)return respond(409,{error:"invite_code_used_or_invalid"});
-      return respond(200,{joined:true,team_id:redeemed.team_id,team_name:redeemed.team_name});
+      return respond(200,{sent:true,invitation_id:data});
+    }
+
+    if (action === "teams_friend_invite_respond") {
+      const invitationId=String(body?.invitation_id??""),decision=String(body?.decision??"");
+      if(!invitationId||!["accepted","rejected"].includes(decision))return respond(400,{error:"invalid_team_invite_response"});
+      const {data,error}=await adminClient.rpc("aevnetwork_respond_team_friend_invite",{
+        p_invitation_id:invitationId,p_user_id:userId,p_decision:decision
+      });
+      if(error){
+        const message=error.message||"";
+        const known=["team_invite_not_found","team_invite_already_responded","team_not_found","team_invite_friendship_removed","team_full","already_team_member"];
+        const code=known.find(x=>message.includes(x));
+        if(code)return respond(code==="team_invite_not_found"?404:409,{error:code});
+        console.error("teams_friend_invite_respond RPC failed",{code:error.code??null,message:error.message??null,details:error.details??null});
+        return respond(500,{error:"team_invite_response_failed"});
+      }
+      const result=Array.isArray(data)?data[0]:data;
+      return respond(200,{responded:decision,team_id:result?.team_id??null,team_name:result?.team_name??null});
     }
 
     if (action === "teams_list") {
@@ -606,7 +605,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === "teams_members") {
       const teamId=String(body?.team_id??"");
-      const {data:team}=await adminClient.from("aevnetwork_teams").select("id,owner_id,invite_code_updated_at").eq("id",teamId).maybeSingle();
+      const {data:team}=await adminClient.from("aevnetwork_teams").select("id,owner_id").eq("id",teamId).maybeSingle();
       if(!team)return respond(404,{error:"team_not_found"});
       const {data:mine}=await adminClient.from("aevnetwork_team_members").select("status,role").eq("team_id",teamId).eq("user_id",userId).maybeSingle();
       if(!mine||mine.status!=="approved")return respond(403,{error:"team_membership_required"});
@@ -617,7 +616,7 @@ Deno.serve(async (req: Request) => {
       const names=new Map((profiles??[]).map((p:any)=>[p.user_id,p.nickname||"ユーザー"]));
       const badges=await getBadgeMap(ids);
       const isLeader=team.owner_id===userId;
-      return respond(200,{is_leader:isLeader,is_owner:isLeader,invite_code_updated_at:isLeader?team.invite_code_updated_at:null,items:(rows??[]).filter((m:any)=>isLeader||m.status==="approved").map((m:any)=>({...m,nickname:names.get(m.user_id)||"ユーザー",...(badges.get(m.user_id)||{})}))});
+      return respond(200,{is_leader:isLeader,is_owner:isLeader,items:(rows??[]).filter((m:any)=>isLeader||m.status==="approved").map((m:any)=>({...m,nickname:names.get(m.user_id)||"ユーザー",...(badges.get(m.user_id)||{})}))});
     }
 
     if (action === "teams_kick") {
