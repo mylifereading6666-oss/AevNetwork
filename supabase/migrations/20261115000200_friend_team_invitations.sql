@@ -53,6 +53,10 @@ BEGIN
     WHERE team_id = p_team_id AND status = 'approved';
   IF v_count >= 4 THEN RAISE EXCEPTION 'team_full'; END IF;
 
+  IF EXISTS (SELECT 1 FROM public.aevnetwork_team_friend_invitations WHERE team_id=p_team_id AND invitee_id=p_invitee_id AND status='pending') THEN
+    RAISE EXCEPTION 'team_invite_already_pending';
+  END IF;
+
   SELECT * INTO v_existing FROM public.aevnetwork_team_friend_invitations
     WHERE team_id = p_team_id AND invitee_id = p_invitee_id AND status = 'rejected'
     ORDER BY created_at DESC LIMIT 1;
