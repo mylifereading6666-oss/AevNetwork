@@ -950,13 +950,20 @@ Deno.serve(async (req: Request) => {
       const q = String(body?.query ?? "").trim().slice(0, 40);
       if (q.length < 2) return respond(200, { items: [] });
 
-      // Normalize kana width and script so hiragana/katakana variants match.
+      // Normalize width, case, and kana script. Hiragana and katakana
+      // searches should find the same nickname, including partial matches.
       const normalizeName = (value: string) => value.normalize("NFKC").toLocaleLowerCase("ja")
         .replace(/[ァ-ヶ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
-      const queryForms = new Set<string>([q, q.normalize("NFKC")]);
+      const toKatakana = (value: string) => value.replace(/[ぁ-ゖ]/g,
+        (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60));
       const normalizedQuery = normalizeName(q);
-      queryForms.add(normalizedQuery);
-      // Common spelling variants explicitly requested for Japanese display names.
+      const queryForms = new Set<string>([
+        q,
+        q.normalize("NFKC"),
+        normalizedQuery,
+        toKatakana(normalizedQuery)
+      ]);
+      // Keep the existing explicit spelling aliases.
       const commonAliases: Record<string, string[]> = {
         "馬鹿": ["ばか", "バカ", "baka"],
         "ばか": ["馬鹿", "バカ", "baka"],
@@ -976,14 +983,11 @@ Deno.serve(async (req: Request) => {
         for (const profile of result.data ?? []) {
           const name = String(profile.nickname ?? "");
           const normalizedName = normalizeName(name);
-          const matches = [...queryForms].some((term) =>
-            normalizedName.includes(normalizeName(term)) || normalizeName(term).includes(normalizedName)
-          );
-          // Alias searches are intentional: e.g. 馬鹿, ばか, バカ.
+          const matches = normalizedName.includes(normalizedQuery);
           const aliasMatch = [...queryForms].some((term) =>
             (commonAliases[term.toLocaleLowerCase("ja")] ?? []).some((alias) => normalizeName(alias) === normalizedName)
           );
-          if (matches || aliasMatch || searchTerms.includes(name)) uniqueProfiles.set(profile.user_id, profile);
+          if (matches || aliasMatch) uniqueProfiles.set(profile.user_id, profile);
         }
       }
       const data = [...uniqueProfiles.values()].sort((a, b) => String(a.nickname ?? "").localeCompare(String(b.nickname ?? ""), "ja")).slice(0, 30);
