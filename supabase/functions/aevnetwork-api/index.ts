@@ -502,7 +502,15 @@ Deno.serve(async (req: Request) => {
         if(message.includes("already_team_member"))return respond(409,{error:"already_team_member"});
         if(message.includes("invite_code_expired"))return respond(410,{error:"invite_code_expired"});
         if(message.includes("invite_code_used_or_invalid"))return respond(409,{error:"invite_code_used_or_invalid"});
-        return respond(500,{error:"team_join_failed"});
+
+        // Keep database diagnostics in Edge Function logs; never expose SQL details to clients.
+        console.error("teams_join_code RPC failed", {
+          code: error.code ?? null,
+          message: error.message ?? null,
+          details: error.details ?? null,
+          hint: error.hint ?? null
+        });
+        return respond(500,{error:"team_join_failed",diagnostic_code:error.code??null});
       }
       const redeemed=Array.isArray(data)?data[0]:data;
       if(!redeemed?.team_id)return respond(409,{error:"invite_code_used_or_invalid"});
