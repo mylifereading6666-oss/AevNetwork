@@ -684,8 +684,14 @@ Deno.serve(async (req: Request) => {
 
     if (action === "teams_leave" || action === "teams_chat_hide") {
       const teamId=String(body?.team_id??"");
-      const {data:team}=await adminClient.from("aevnetwork_teams").select("owner_id").eq("id",teamId).maybeSingle();
+      const {data:team}=await adminClient.from("aevnetwork_teams").select("id,owner_id").eq("id",teamId).maybeSingle();
       if(!team)return respond(404,{error:"team_not_found"});
+      if(action==="teams_leave"&&team.owner_id===userId){
+        if(body?.confirm_delete!==true)return respond(409,{error:"leader_exit_requires_delete_confirmation"});
+        const {error:deleteError}=await adminClient.from("aevnetwork_teams").delete().eq("id",teamId).eq("owner_id",userId);
+        if(deleteError)return respond(500,{error:"team_delete_failed",detail:deleteError.message});
+        return respond(200,{left:true,deleted:true});
+      }
       if(team.owner_id===userId)return respond(403,{error:"leader_cannot_leave"});
       const {data:currentMembership}=await adminClient.from("aevnetwork_team_members").select("status").eq("team_id",teamId).eq("user_id",userId).maybeSingle();
       if(!currentMembership||currentMembership.status!=="approved")return respond(403,{error:"team_membership_required"});
