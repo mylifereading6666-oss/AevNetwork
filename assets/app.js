@@ -234,6 +234,52 @@ async function loadCommunityReports(){
  }catch(e){el.textContent='報告一覧を読み込めませんでした：'+e.message;}
 }
 
+
+async function loadBoardDeletionNotices(){
+ const el=$('boardDeletionNotices'),badge=$('boardDeletionNoticeBadge');if(!el)return;
+ if(!session){el.innerHTML='<p class="muted">ログインすると削除通知を確認できます。</p>';if(badge)badge.hidden=true;return;}
+ try{const r=await call('community_my_deletion_notices'),items=r.items||[],unread=items.filter(x=>!x.read_at).length;
+  if(badge){badge.textContent=String(unread);badge.hidden=!unread;}
+  el.innerHTML=items.length?items.map(x=>'<article class="card"><strong>'+esc(x.item_type==='post'?'投稿の削除通知':'コメントの削除通知')+'</strong>'+(x.item_title?'<h3>'+esc(x.item_title)+'</h3>':'')+'<p>'+esc(x.item_content||'（内容なし）')+'</p><p class="muted">削除理由：'+esc(x.reason||'理由は記載されていません')+' · '+esc(date(x.created_at))+'</p>'+(x.read_at?'<span class="feed-meta">確認済み</span>':'<button class="secondary" type="button" data-board-notice-read="'+esc(x.id)+'">確認済みにする</button>')+'</article>').join(''):'<p class="muted">削除通知はありません。</p>';
+ }catch(e){el.textContent='削除通知を読み込めませんでした：'+e.message;}
+}
+async function loadCommunity(){
+ const postsEl=$('communityPosts'),form=$('communityPostForm'),loginNote=$('communityLoginNote');if(!postsEl)return;
+ const loggedIn=!!session;if(form)form.hidden=!loggedIn;if(loginNote)loginNote.hidden=loggedIn;
+ try{const r=await call('community_list_posts'),items=r.items||[];
+  postsEl.innerHTML=items.length?items.map(p=>{
+   const image=safeFeedUrl(p.image_url||''),comments=p.comments||[],own=!!session&&p.author_id===session.user.id,canDelete=own||isNetworkAdmin;
+   const commentHtml=comments.length?comments.map(c=>'<div class="community-comment"><p>'+esc(c.body).replace(/\n/g,'<br>')+'</p><p class="feed-meta">'+esc(c.author_nickname||'ユーザー')+' · '+esc(date(c.created_at))+'</p><div class="actions">'+((session&&c.author_id===session.user.id)||isNetworkAdmin?'<button class="danger" type="button" data-community-delete-comment="'+esc(c.id)+'" data-own="'+String(!!(session&&c.author_id===session.user.id))+'">返信を削除</button>':'')+(!session||c.author_id!==session.user.id?'<button class="secondary" type="button" data-community-report="comment" data-target-id="'+esc(c.id)+'">報告</button>':'')+'</div></div>').join(''):'<p class="muted">まだ返信はありません。</p>';
+   return '<article class="card community-post" data-community-post="'+esc(p.id)+'"><div class="feed-meta">'+esc(p.author_nickname||'ユーザー')+' · '+esc(date(p.created_at))+'</div><h3>'+esc(p.title)+'</h3><p class="community-post-body">'+esc(p.body).replace(/\n/g,'<br>')+'</p>'+(image?'<img class="feed-image" src="'+esc(image)+'" alt="投稿画像" loading="lazy">':'')+'<div class="actions">'+(canDelete?'<button class="danger" type="button" data-community-delete-post="'+esc(p.id)+'" data-own="'+String(own)+'">投稿を削除</button>':'')+(!own&&loggedIn?'<button class="secondary" type="button" data-community-report="post" data-target-id="'+esc(p.id)+'">報告</button>':'')+'</div><div class="community-comments"><h4>返信（'+comments.length+'）</h4>'+commentHtml+(loggedIn?'<form class="community-comment-form" data-community-comment-form="'+esc(p.id)+'"><textarea class="field" name="body" rows="2" maxlength="2000" required placeholder="返信を入力"></textarea><button class="secondary" type="submit">返信する</button></form>':'')+'</div></article>';
+  }).join(''):'<p class="muted">まだ投稿はありません。</p>';
+ }catch(e){postsEl.textContent='掲示板を読み込めませんでした：'+e.message;}
+ if(loggedIn)await loadBoardDeletionNotices();
+}
+$('communityPostForm')?.addEventListener('submit',async e=>{
+ e.preventDefault();if(!session)return;const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),status=$('communityPostStatus'),title=$('communityPostTitle').value.trim(),body=$('communityPostBody').value.trim(),file=$('communityPostImage')?.files?.[0];
+ if(!title||!body)return;button.disabled=true;status.textContent='投稿しています…';
+ try{let imageUrl='',imagePath='';
+  if(file){const types={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'};if(!types[file.type]||file.size>5*1024*1024)throw new Error('画像はJPEG・PNG・WebP・GIF形式、5MB以下にしてください。');
+   const path=session.user.id+'/'+crypto.randomUUID()+'.'+types[file.type],response=await fetch(PROFILE_STORAGE_URL+'/storage/v1/object/aev-board-images/'+path,{method:'POST',headers:{apikey:PROFILE_STORAGE_KEY,Authorization:'Bearer '+session.access_token,'Content-Type':file.type,'x-upsert':'false'},body:file}),result=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(result.message||result.error||'画像アップロードに失敗しました。');imagePath=path;imageUrl=PROFILE_STORAGE_URL+'/storage/v1/object/public/aev-board-images/'+path;
+  }
+  await call('community_create_post',{title,body,image_url:imageUrl,image_path:imagePath});form.reset();status.textContent='投稿しました。';await loadCommunity();
+ }catch(err){status.textContent='投稿できませんでした：'+err.message;}finally{button.disabled=false;}
+});
+$('communityPosts')?.addEventListener('submit',async e=>{
+ const form=e.target.closest('[data-community-comment-form]');if(!form)return;e.preventDefault();const button=form.querySelector('button[type="submit"]'),body=form.elements.body.value.trim();if(!body||!session)return;button.disabled=true;
+ try{await call('community_create_comment',{post_id:form.dataset.communityCommentForm,body});await loadCommunity();}catch(err){alert('返信できませんでした：'+err.message);button.disabled=false;}
+});
+$('communityPosts')?.addEventListener('click',async e=>{
+ const b=e.target.closest('[data-community-delete-post],[data-community-delete-comment],[data-community-report]');if(!b)return;
+ if(b.dataset.communityReport){const reason=prompt('報告理由を入力してください（5〜500文字）');if(reason===null)return;try{await call('community_report',{target_type:b.dataset.communityReport,target_id:b.dataset.targetId,reason});alert('報告を送信しました。');}catch(err){alert('報告できませんでした：'+err.message);}return;}
+ const post=b.hasAttribute('data-community-delete-post'),id=post?b.dataset.communityDeletePost:b.dataset.communityDeleteComment;if(!confirm(post?'この投稿を削除しますか？':'この返信を削除しますか？'))return;
+ let reason='';if(b.dataset.own!=='true'&&isNetworkAdmin){reason=prompt('管理者による削除理由を入力してください（3文字以上）')||'';if(reason.length<3){alert('削除理由は3文字以上必要です。');return;}}
+ b.disabled=true;try{await call(post?'community_delete_post':'community_delete_comment',{id,reason});await loadCommunity();}catch(err){alert('削除できませんでした：'+err.message);b.disabled=false;}
+});
+$('boardNoticesRefresh')?.addEventListener('click',loadBoardDeletionNotices);
+$('boardDeletionNotices')?.addEventListener('click',async e=>{const b=e.target.closest('[data-board-notice-read]');if(!b)return;b.disabled=true;try{await call('community_read_deletion_notice',{notice_id:b.dataset.boardNoticeRead});await loadBoardDeletionNotices();}catch(err){alert('通知を更新できませんでした：'+err.message);b.disabled=false;}});
+
 let activeTeamId=null,teamChatTimer=null,teamRefreshTimer=null,teamInviteTimer=null,teamBadgeTimer=null,lastTeamChatSignature="",teamDirectoryCache=[];
 function teamError(e){const m={team_already_created:"作成できるチームは1人につき1つまでです。すでに作成済みのチームがあります。",team_invite_target_not_friend:"招待できるのはフレンドだけです。",team_invite_already_member_or_applied:"このユーザーは既にチーム参加中、または申請中です。",team_invite_already_pending:"このフレンドには既に招待を送っています。",team_invite_not_found:"チーム招待が見つかりません。",team_invite_already_responded:"このチーム招待は既に処理されています。",team_invite_friendship_removed:"招待者とのフレンド関係が解除されているため参加できません。",missing_session:"利用するにはログインしてください。",team_application_exists:"このチームには申請済み、または参加中です。",team_chat_members_only:"チャットは承認済みメンバー限定です。",team_leader_required:"チームリーダーのみ操作できます。",leader_cannot_leave:"リーダーはチームを退出できません。",team_full:"このチームは定員4人に達しています。",team_delete_forbidden:"作成したリーダーまたは管理者のみ削除できます。",already_team_member:"すでにこのチームに参加しています。",cannot_kick_admin:"管理者はキックできません。",cannot_kick_leader:"リーダーはキックできません。",team_member_not_active:"対象メンバーは参加中ではありません。"};return m[e.message]||e.message||"処理に失敗しました。";}
 async function loadTeams(){const directory=$("teamDirectory"),mineEl=$("myTeams");if(!directory||!mineEl)return;try{const a=await call("teams_list"),b=session?await call("teams_my"):{items:[]},inv=session?await call("teams_friend_invites_overview"):{incoming:[],outgoing:[]};teamDirectoryCache=a.items||[];renderTeamDirectory();renderMyTeams(b.items||[]);renderTeamInvitations(inv.incoming||[],inv.outgoing||[]);}catch(e){directory.textContent="チームを読み込めませんでした："+teamError(e);mineEl.textContent="ログイン後に申請状況を確認できます。";}}
@@ -453,5 +499,5 @@ function startSharedRealtime(){
   }
  }catch(e){console.warn('共有データのリアルタイム接続に失敗しました',e);}
 }
-(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();if(session)startPresenceHeartbeat();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();await restoreOwnNetworkSnapshot();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(yes&&document.documentElement.dataset.page==='teams')await loadTeamAdminTools();if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='news')loadPublicFeed('news','publicNews');if(document.documentElement.dataset.page==='updates')loadPublicFeed('updates','publicUpdates');if(document.documentElement.dataset.page==='community')await loadCommunity();if(document.documentElement.dataset.page==='friends')await loadFriendsPage();if(document.documentElement.dataset.page==='profile')await loadPublicProfilePage();if(document.documentElement.dataset.page==='teams')await loadTeams();startSharedRealtime();setInterval(()=>{if(!document.hidden)refreshServiceMaintenance();},3000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshServiceMaintenance();});window.addEventListener('focus',refreshServiceMaintenance);}catch(e){localStorage.removeItem(KEY);session=null;showAccount();refreshTestHelperClaimPanel();}})();
+(async()=>{try{session=JSON.parse(localStorage.getItem(KEY)||'null');showAccount();if(session)startPresenceHeartbeat();await loadSharedProfile();const yes=await refreshAdmin();await refreshServiceMaintenance();await restoreOwnNetworkSnapshot();if(yes&&document.documentElement.dataset.page==='admin')await loadAdmin();if(yes&&document.documentElement.dataset.page==='teams')await loadTeamAdminTools();if(document.documentElement.dataset.page==='index'||document.documentElement.dataset.page==='announcements')loadPublicFeed('announcements','publicAnnouncements');if(document.documentElement.dataset.page==='news')loadPublicFeed('news','publicNews');if(document.documentElement.dataset.page==='updates')loadPublicFeed('updates','publicUpdates');if(document.documentElement.dataset.page==='community')await loadCommunity();if(document.documentElement.dataset.page==='friends')await loadFriendsPage();if(document.documentElement.dataset.page==='profile')await loadPublicProfilePage();if(document.documentElement.dataset.page==='teams')await loadTeams();startSharedRealtime();setInterval(()=>{if(!document.hidden)refreshServiceMaintenance();},3000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshServiceMaintenance();});window.addEventListener('focus',refreshServiceMaintenance);}catch(e){console.error('AevNetwork初期化に失敗しました',e);showAccount();refreshTestHelperClaimPanel();const page=document.documentElement.dataset.page;if(page==='community'){const posts=$('communityPosts');if(posts)posts.textContent='ページの初期化に失敗しました。再読み込みしてください。';}}})();
 })();
