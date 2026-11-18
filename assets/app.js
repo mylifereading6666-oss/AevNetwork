@@ -7,6 +7,21 @@ window.addEventListener('unhandledrejection',e=>{diagnosticEvents.rejections.pus
 window.addEventListener('error',e=>{if(e.target&&e.target!==window&&e.target.src)diagnosticEvents.resourceFailures.push({resource:String(e.target.src).split('/').pop(),type:e.target.tagName||'resource',time:new Date().toISOString()});},true);
 
 const $=id=>document.getElementById(id),sidebar=$('sidebar'),overlay=$('overlay'),hamb=$('hamb');
+
+(function showAevNetworkStorageNotice(){
+ const key='aevnetwork_required_storage_consent_v1';
+ let accepted=false;try{accepted=localStorage.getItem(key)==='accepted'}catch(e){}
+ if(accepted)return;
+ const style=document.createElement('style');
+ style.textContent='.aev-storage-backdrop{position:fixed;inset:0;z-index:20000;background:#050713df;display:grid;place-items:end center;padding:18px}.aev-storage-card{width:min(760px,100%);padding:22px;border:1px solid #625b91;border-radius:18px;background:#151a2d;color:#f4f6ff;box-shadow:0 18px 60px #000b}.aev-storage-card h2{margin:0 0 8px;font-size:20px}.aev-storage-card p{color:#c4cce0;line-height:1.7;margin:8px 0}.aev-storage-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.aev-storage-actions button{border:1px solid #626b8c;border-radius:10px;padding:10px 14px;color:#fff;background:#252d46;font-weight:750}.aev-storage-actions .accept{background:linear-gradient(135deg,#7565db,#4b65c8);border:0}.aev-storage-error{color:#ffb7c5!important}@media(max-width:600px){.aev-storage-backdrop{padding:10px}.aev-storage-card{padding:17px}.aev-storage-actions{flex-direction:column}.aev-storage-actions button{width:100%}}';
+ document.head.append(style);
+ const layer=document.createElement('div');layer.className='aev-storage-backdrop';
+ layer.innerHTML='<section class="aev-storage-card" role="dialog" aria-modal="true" aria-labelledby="aevStorageTitle"><h2 id="aevStorageTitle">Cookie・ブラウザ保存の利用について</h2><p>AevNetworkでは、ログイン状態の維持や画面設定などの基本機能のために、Cookieではなく主にブラウザの localStorage 等を使用します。認証・データ保存にはSupabaseを利用します。</p><p>現在、当サイト独自の広告Cookieやアクセス解析用Cookieは設定していません。外部サービス（Supabase、CDN等）は、それぞれの機能提供に必要な通信・保存処理を行う場合があります。詳しくは<a href="privacy-policy.html" style="color:#c7baff;text-decoration:underline">プライバシーポリシー</a>をご確認ください。</p><p>基本機能に必要なブラウザ保存の利用に同意すると、選択内容をこの端末に保存し、次回からこの案内を表示しません。</p><p class="aev-storage-error" id="aevStorageError" hidden>同意いただけない場合、ログインや保存などの機能を利用できません。この案内を閉じずにブラウザを終了してください。</p><div class="aev-storage-actions"><button class="accept" type="button" id="aevStorageAccept">必須の保存に同意する</button><button type="button" id="aevStorageReject">同意しない</button></div></section>';
+ document.body.append(layer);
+ layer.querySelector('#aevStorageAccept').addEventListener('click',()=>{try{localStorage.setItem(key,'accepted');layer.remove();style.remove()}catch(e){layer.querySelector('#aevStorageError').hidden=false}});
+ layer.querySelector('#aevStorageReject').addEventListener('click',()=>{layer.querySelector('#aevStorageError').hidden=false});
+})();
+
 function menu(open){sidebar?.classList.toggle('open',open);overlay?.classList.toggle('show',open);document.body.style.overflow=open?'hidden':'';hamb?.setAttribute('aria-expanded',String(open));}
 hamb?.addEventListener('click',()=>menu(!sidebar.classList.contains('open')));
 overlay?.addEventListener('click',()=>menu(false));
