@@ -28,25 +28,61 @@ overlay?.addEventListener('click',()=>menu(false));
 document.querySelectorAll('.navbtn').forEach(a=>{if(a.dataset.page===document.documentElement.dataset.page){a.classList.add('active');const g=a.closest('.navgroup');if(g)g.open=true;}a.addEventListener('click',()=>menu(false));});
 document.getElementById('headerAccountLink')?.addEventListener('click',()=>setTimeout(refreshServiceMaintenance,0));
 if($('year'))$('year').textContent=new Date().getFullYear();
+// Refresh-token rotation must be serialized. Supabase may invalidate the previous
+// refresh token as soon as one refresh succeeds; parallel refreshes can otherwise
+// overwrite the newly-issued token with a failed/older response.
+let authRefreshPromise=null;
 async function refreshAuthSession(force=false){
  if(!session?.refresh_token)return false;
  const expiresAt=Number(session.expires_at||0);
- if(!force&&expiresAt&&expiresAt>Date.now()/1000+60)return true;
- try{
-  const response=await fetch(PROFILE_STORAGE_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'Content-Type':'application/json',apikey:PROFILE_STORAGE_KEY},body:JSON.stringify({refresh_token:session.refresh_token})});
-  const refreshed=await response.json().catch(()=>({}));
-  if(!response.ok||!refreshed.access_token||!refreshed.refresh_token)return false;
-  session={...session,...refreshed};
-  localStorage.setItem(KEY,JSON.stringify(session));
-  return true;
- }catch(e){console.warn('AevNetworkログインセッションの更新に失敗しました',e);return false;}
+ if(!force&&expiresAt&&expiresAt>Date.now()/1000+90)return true;
+ if(authRefreshPromise)return authRefreshPromise;
+ const refreshToken=session.refresh_token;
+ authRefreshPromise=(async()=>{
+  try{
+   const response=await fetch(PROFILE_STORAGE_URL+'/auth/v1/token?grant_type=refresh_token',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',apikey:PROFILE_STORAGE_KEY},
+    body:JSON.stringify({refresh_token:refreshToken})
+   });
+   const refreshed=await response.json().catch(()=>({}));
+   if(!response.ok||!refreshed.access_token||!refreshed.refresh_token){
+    console.warn('AevNetworkログインセッションの更新に失敗しました',{status:response.status,error:refreshed.error||refreshed.msg||refreshed.message||'refresh_failed'});
+    return false;
+   }
+   // Do not let a late refresh overwrite a newer session created by a fresh login.
+   if(session?.refresh_token!==refreshToken&&session?.access_token!==undefined)return true;
+   const expiresIn=Number(refreshed.expires_in||0);
+   session={...session,...refreshed};
+   if(!session.expires_at&&expiresIn)session.expires_at=Math.floor(Date.now()/1000)+expiresIn;
+   localStorage.setItem(KEY,JSON.stringify(session));
+   return true;
+  }catch(e){
+   console.warn('AevNetworkログインセッションの更新に失敗しました',e);
+   return false;
+  }finally{
+   authRefreshPromise=null;
+  }
+ })();
+ return authRefreshPromise;
 }
 async function call(action,extra={},retried=false){
- if(session?.refresh_token&&session.expires_at&&Number(session.expires_at)<=Date.now()/1000+60)await refreshAuthSession(false);
- const headers={'Content-Type':'application/json'};if(session?.access_token)headers.Authorization='Bearer '+session.access_token;
+ if(session?.refresh_token){
+  const expiresAt=Number(session.expires_at||0);
+  if(expiresAt&&expiresAt<=Date.now()/1000+90){
+   const refreshed=await refreshAuthSession(false);
+   if(!refreshed)throw Error('ログインセッションを更新できませんでした。通信状態を確認するか、再ログインしてください。');
+  }
+ }
+ const headers={'Content-Type':'application/json'};
+ if(session?.access_token)headers.Authorization='Bearer '+session.access_token;
  const res=await fetch(API,{method:'POST',headers,body:JSON.stringify({action,...extra})});
  const data=await res.json().catch(()=>({}));
- if(res.status===401&&!retried&&await refreshAuthSession(true))return call(action,extra,true);
+ if(res.status===401&&!retried){
+  const refreshed=await refreshAuthSession(true);
+  if(refreshed)return call(action,extra,true);
+  throw Error('ログインセッションの有効期限が切れています。再ログインしてください。');
+ }
  if(!res.ok)throw Error([data.error||'API通信エラー',data.detail||'',data.code||'',data.hint||''].filter(Boolean).join(' / '));
  return data;
 }
